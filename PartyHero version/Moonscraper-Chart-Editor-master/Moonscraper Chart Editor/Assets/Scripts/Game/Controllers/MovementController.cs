@@ -66,7 +66,9 @@ public abstract class MovementController : MonoBehaviour {
                 // Check if using external DAW sync first
                 if (ExternalSyncManager.Instance != null && ExternalSyncManager.Instance.IsSyncActive())
                 {
-                    audioTimePosition = ExternalSyncManager.Instance.currentTime;
+                    // Use display time (song-relative with pre-roll applied)
+                    // This allows charts to show 3 seconds before song start even in continuous timelines
+                    audioTimePosition = ExternalSyncManager.Instance.GetDisplayTime();
                     hasAudioSource = true;
                 }
                 else

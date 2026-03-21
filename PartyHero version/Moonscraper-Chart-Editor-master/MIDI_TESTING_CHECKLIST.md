@@ -520,6 +520,159 @@
   - [ ] Console error: "Chart file not found: C:/nonexistent/file.chart"
   - [ ] No crash or freeze
 
+### Continuous Timeline Support (Live Band Setup)
+
+**Create test timeline mapping for songs in continuous arrangement:**
+
+```json
+{
+  "mappings": [
+    {
+      "dawTrackName": "Song A",
+      "chartFilePath": "C:/path/to/songA/notes.chart",
+      "enabled": true,
+      "timelineStartTime": 0.0,
+      "visualPreRoll": 3.0
+    },
+    {
+      "dawTrackName": "Song B",
+      "chartFilePath": "C:/path/to/songB/notes.chart",
+      "enabled": true,
+      "timelineStartTime": 225.0,
+      "visualPreRoll": 3.0
+    },
+    {
+      "dawTrackName": "Song C",
+      "chartFilePath": "C:/path/to/songC/notes.chart",
+      "enabled": true,
+      "timelineStartTime": 480.0,
+      "visualPreRoll": 2.5
+    }
+  ]
+}
+```
+
+**Test timeline offset calculation:**
+
+- [ ] Reload mappings with timeline offsets
+- [ ] Enable External Sync and Auto-Load
+- [ ] Send `/track/name "Song A"` and `/playback/time 0.0`
+  - [ ] Song A loads
+  - [ ] Console shows: "Song offset set - Timeline start: 0s, Pre-roll: 3s"
+  - [ ] Chart displays at position `-3.0` (pre-roll before song start)
+- [ ] Send `/playback/time 5.0` (5 seconds into Song A)
+  - [ ] Chart displays at position `2.0` (5.0 - 3.0 pre-roll)
+  - [ ] Chart scrolls smoothly
+
+**Test song transition in continuous timeline:**
+
+- [ ] Send `/track/name "Song B"` and `/playback/time 225.0` (start of Song B)
+  - [ ] Song B loads
+  - [ ] Console shows: "Song offset set - Timeline start: 225s, Pre-roll: 3s"
+  - [ ] Chart displays at position `-3.0` (pre-roll, song-relative)
+  - [ ] Even though DAW is at 225s absolute, chart shows -3s relative to Song B
+- [ ] Send `/playback/time 230.0` (5 seconds into Song B)
+  - [ ] Chart displays at position `2.0` ((230 - 225) - 3.0)
+  - [ ] Calculation: absolute time - timeline start - pre-roll
+
+**Test different pre-roll values:**
+
+- [ ] Send `/track/name "Song C"` and `/playback/time 480.0`
+  - [ ] Song C loads with 2.5s pre-roll
+  - [ ] Chart displays at position `-2.5`
+- [ ] Send continuous time updates from 480.0 to 485.0
+  - [ ] Chart scrolls from -2.5s to 2.5s
+  - [ ] Pre-roll timing feels shorter than Song A/B (expected)
+
+**Test live band workflow simulation:**
+
+- [ ] Simulate full setlist playback:
+  1. Load Song A (time 0.0) → chart shows -3.0
+  2. Play for 30 seconds (time 0.0 → 30.0) → chart scrolls 0.0 → 27.0
+  3. Jump to Song B (time 225.0) → chart resets to -3.0 (song-relative)
+  4. Play for 20 seconds (time 225.0 → 245.0) → chart scrolls 0.0 → 17.0
+  5. Jump to Song C (time 480.0) → chart resets to -2.5
+- [ ] Verify no drift, jumps, or desyncs throughout
+- [ ] Verify console logs show correct offset calculations
+
+**Test edge cases:**
+
+- [ ] Send time slightly before song start (e.g., 224.0 for Song B at 225.0)
+  - [ ] Chart displays at `-4.0` (1 second before pre-roll)
+  - [ ] Handles negative song-relative time correctly
+- [ ] Send time way past song start (e.g., 300.0 for Song B at 225.0)
+  - [ ] Chart displays at `72.0` ((300 - 225) - 3.0)
+  - [ ] Large offsets don't cause issues
+- [ ] Load song without timeline offset specified (defaults to 0.0)
+  - [ ] Works as standard song (assumes starts at 0.0)
+- [ ] Change visualPreRoll to 0.0 (no pre-roll)
+  - [ ] Chart starts exactly at song start (no negative time)
+
+**Verify continuous timeline in live performance:**
+
+- [ ] Setup actual Ableton project with 3+ songs in one timeline
+- [ ] Configure AbleSet with markers for each song
+- [ ] Update mapping JSON with exact timeline positions
+- [ ] Test drummer workflow:
+  1. Drummer says "Next song!" and clicks AbleSet next
+  2. AbleSet jumps to next song marker
+  3. Clone Hero auto-loads chart
+  4. Drummer sees chart with 3-second pre-roll
+  5. Drummer starts playback when ready
+  6. Chart stays perfectly synced throughout song
+- [ ] Repeat for 3+ song transitions without restarting
+- [ ] Verify no accumulated timing errors
+
+### Ready State / Waiting Mode (Live Band Workflow)
+
+**Test pause/ready state before song starts:**
+
+- [ ] Load song mapping with timeline offset
+- [ ] Send `/track/name "Song A"` and `/playback/time 0.0`
+  - [ ] Song A loads
+  - [ ] Chart displays at `-3.0` seconds
+- [ ] Send `/playback/playing 0` (DAW paused/stopped)
+  - [ ] Chart **FREEZES** at `-3.0` position
+  - [ ] Notes visible but not scrolling
+  - [ ] Band can see what's coming
+- [ ] Wait 5+ seconds (simulate band getting ready)
+  - [ ] Chart still frozen at `-3.0`
+  - [ ] No drift or changes
+- [ ] Send `/playback/playing 1` (drummer starts playback)
+  - [ ] Chart immediately starts scrolling
+  - [ ] Scrolls from `-3.0` → `-2.0` → `-1.0` → `0.0`
+- [ ] Send continuous time updates (0.0 → 10.0)
+  - [ ] Chart syncs perfectly with time
+  - [ ] No jump or glitch when transitioning from ready → playing
+
+**Test live band song transition workflow:**
+
+- [ ] Simulate full between-song workflow:
+  1. Song A playing (time 15.0, chart at 15.0)
+  2. Send `/playback/playing 0` → chart freezes
+  3. Send `/track/name "Song B"` → Song B loads, chart at -3.0, frozen
+  4. Wait 10 seconds (band talks, swaps guitars)
+  5. Send `/playback/time 225.0` (Song B start) → chart still frozen at -3.0
+  6. Send `/playback/playing 1` → chart starts scrolling from -3.0
+  7. Send time updates (225.0 → 230.0) → chart scrolls 0.0 → 5.0
+- [ ] Verify smooth transitions, no jumps
+- [ ] Verify drummer has full control over timing
+
+**Test edge cases in ready state:**
+
+- [ ] Load song, pause, change time while paused
+  - [ ] Chart stays at `-3.0` regardless of time changes
+  - [ ] (Band can cue to different position in song)
+- [ ] Start playing from middle of song (not from start)
+  - [ ] Chart immediately jumps to correct position when playing starts
+  - [ ] No pre-roll applies (already past that point)
+- [ ] Pause mid-song, then resume
+  - [ ] Chart freezes at current position when paused
+  - [ ] Resumes scrolling when playing again
+- [ ] Pause during pre-roll phase (time between -3 and 0)
+  - [ ] Chart freezes at current negative position
+  - [ ] Resumes counting up when playing again
+
 ### Combined MIDI + DAW Sync Test
 
 - [ ] Enable both MIDI output and DAW sync
@@ -583,7 +736,185 @@
 - [ ] Scene transitions with DAW sync active
   - [ ] ExternalSyncManager persists (DontDestroyOnLoad)
   - [ ] OSC listener continues receiving
+### Pre-Show Setlist Verification
 
+**Prerequisites:**
+- [ ] SetlistVerifier GameObject exists in scene with component attached
+- [ ] ExternalSyncManager configured with DAW IP and output port (39045 default)
+- [ ] AbleSet OSC Input enabled (Settings → OSC → Input, port 39045)
+- [ ] Mapping JSON file contains at least 3 songs with timeline positions
+- [ ] External Sync is connected (receiving OSC from AbleSet)
+
+**Test UI Elements:**
+- [ ] Verification section visible in DAW Sync Settings panel
+- [ ] "Verify Setlist" button present
+- [ ] "Cancel Verification" button present
+- [ ] Verification status text present
+- [ ] Progress bar present
+- [ ] Results text area present (scrollable)
+
+**Basic Verification Flow:**
+- [ ] Click "Verify Setlist" button
+  - [ ] Console shows: "Starting verification of X songs..."
+  - [ ] Status text changes to yellow: "Verifying... 0/X"
+  - [ ] Progress bar starts at 0%
+  - [ ] "Verify Setlist" button becomes disabled
+  - [ ] "Cancel Verification" button becomes enabled
+- [ ] Watch verification progress
+  - [ ] Each song is cued in sequence
+  - [ ] Console logs: "Verifying 'Song Name' (expected position: X.Xs)..."
+  - [ ] Status updates: "Verifying... 1/X", "Verifying... 2/X", etc.
+  - [ ] Progress bar increments (33%, 66%, 100%)
+  - [ ] Each verification takes ~3 seconds (cue + response timeout)
+- [ ] Verification completes successfully (all songs pass)
+  - [ ] Status text: green "✓ All songs verified successfully!"
+  - [ ] Progress text: "Passed: X | Failed: 0"
+  - [ ] Console summary: "========== VERIFICATION COMPLETE =========="
+  - [ ] Console: "Total: X | Passed: X | Failed: 0"
+  - [ ] Console: "All songs verified successfully! Ready for the show."
+  - [ ] Results text shows each song with ✓ PASS status
+  - [ ] "Verify Setlist" button re-enabled
+  - [ ] "Cancel Verification" button disabled
+
+**Verification Results Display:**
+- [ ] Each passed song shows in results:
+  ```
+  ✓ PASS - Song Name
+    Expected: X.XXs | Actual: X.XXs
+  ```
+- [ ] Positions match within 0.1s tolerance
+- [ ] Results are scrollable for long setlists (10+ songs)
+- [ ] Results persist after verification completes
+
+**Test Position Matching Accuracy:**
+- [ ] Song at timeline 0.0s verifies correctly
+- [ ] Song at timeline 225.5s verifies correctly
+- [ ] Song at timeline 480.0s verifies correctly
+- [ ] Verify tolerance works (actual 225.52s vs expected 225.50s = PASS)
+- [ ] Verify tight sync (difference < 0.05s shows in logs)
+
+**Test Failed Verification (Intentional Mismatch):**
+- [ ] Edit mapping JSON: change one song's timelineStartTime to incorrect value
+  - Example: Change from 225.0 to 300.0 (75 second error)
+- [ ] Reload mappings
+- [ ] Run verification
+  - [ ] Failed song shows: yellow/orange status during verification
+  - [ ] Console error: "✗ FAIL - 'Song Name' - Position mismatch..."
+  - [ ] Console shows diff: "(diff: 75.000s)"
+  - [ ] Verification continues to next song (doesn't abort)
+- [ ] Verification completes with failures
+  - [ ] Status text: red "✗ X songs failed verification"
+  - [ ] Progress text: "Passed: Y | Failed: X"
+  - [ ] Console warning: "X songs failed verification. Check mapping JSON and Ableton timeline positions."
+  - [ ] Results show failed songs:
+    ```
+    ✗ FAIL - Song Name
+      Expected: 300.00s | Actual: 225.00s
+      Error: Position mismatch - Expected 300.00s, got 225.00s (diff: 75.000s)
+    ```
+- [ ] Fix mapping JSON back to correct value
+- [ ] Re-run verification → all pass
+
+**Test Track Name Mismatch:**
+- [ ] Edit mapping JSON: change dawTrackName to not match AbleSet
+  - Example: "Sweet Child O Mine" vs "Sweet Child O' Mine" (apostrophe)
+- [ ] Reload mappings
+- [ ] Run verification
+  - [ ] Failed song shows error:
+    ```
+    ✗ FAIL - Sweet Child O' Mine
+      Expected: X.XXs | Actual: X.XXs
+      Error: Track name mismatch - DAW returned 'Sweet Child O Mine' but expected 'Sweet Child O' Mine'
+    ```
+  - [ ] Console warning shows both names for comparison
+- [ ] Fix dawTrackName to match exactly
+- [ ] Re-run verification → passes
+
+**Test Disabled Songs:**
+- [ ] Set one song's `enabled: false` in mapping JSON
+- [ ] Reload mappings
+- [ ] Run verification
+  - [ ] Disabled song is skipped (not verified)
+  - [ ] Total count only includes enabled songs
+  - [ ] Example: "Total: 2 | Passed: 2 | Failed: 0" (if 3 songs total, 1 disabled)
+
+**Test Cancel Verification:**
+- [ ] Start verification
+- [ ] Wait for 1-2 songs to complete
+- [ ] Click "Cancel Verification" button
+  - [ ] Verification stops immediately
+  - [ ] Console: "Verification cancelled"
+  - [ ] Status shows partial results (songs completed so far)
+  - [ ] Progress bar shows partial progress
+  - [ ] "Verify Setlist" button re-enabled
+- [ ] Re-run full verification → completes normally
+
+**Test Verification Without Connection:**
+- [ ] Disable External Sync (turn off toggle)
+- [ ] Click "Verify Setlist" button
+  - [ ] Button should be disabled (greyed out)
+  - [ ] If clicked somehow, console error: "Cannot verify - External sync not active..."
+- [ ] Re-enable External Sync
+- [ ] Wait for connection (status: "Connected")
+- [ ] "Verify Setlist" button becomes enabled
+- [ ] Verification works normally
+
+**Test AbleSet OSC Input Disabled:**
+- [ ] Disable OSC Input in AbleSet settings
+- [ ] Run verification
+- [ ] Each song attempts to cue but DAW doesn't respond
+  - [ ] After 3 second timeout per song, continues to next
+  - [ ] All songs may show incorrect positions (DAW didn't jump)
+  - [ ] Or all songs pass with same position (DAW never moved)
+- [ ] Re-enable OSC Input in AbleSet
+- [ ] Re-run verification → works correctly
+
+**Test Large Setlist (10+ songs):**
+- [ ] Create mapping with 10+ songs
+- [ ] Run verification
+  - [ ] Takes ~30 seconds total (3s per song)
+  - [ ] Progress bar updates smoothly through all songs
+  - [ ] No timeouts or hangs
+  - [ ] Results scrollable to see all songs
+  - [ ] Memory usage stable (no leaks)
+- [ ] All songs verify correctly
+
+**Test Multiple Verification Runs:**
+- [ ] Run verification 5 times in a row
+  - [ ] Each run completes successfully
+  - [ ] Results consistent across runs
+  - [ ] No degradation or slowdown
+  - [ ] UDP sockets cleaned up properly between runs
+
+**Test Network Latency (Multi-Computer Setup):**
+- [ ] Run verification with AbleSet on different computer
+  - [ ] Expected: slightly higher variance in position matching
+  - [ ] Should still pass within 0.1s tolerance
+  - [ ] If failures occur due to latency, increase timeout in SetlistVerifier
+- [ ] Monitor network traffic during verification
+  - [ ] Each song sends 1 OSC cue command
+  - [ ] Receives multiple OSC time/track updates
+  - [ ] No packet loss or retransmits
+
+**Test Real-World Pre-Show Scenario:**
+- [ ] Full 2-hour setlist loaded in Ableton/AbleSet (15-20 songs)
+- [ ] Run verification during soundcheck
+- [ ] Drummer reviews results on screen/projector
+- [ ] If any failures:
+  - [ ] Open Ableton, measure correct positions
+  - [ ] Update mapping JSON
+  - [ ] Reload mappings
+  - [ ] Re-verify failed songs only (manual test)
+- [ ] Print or screenshot passed verification results
+- [ ] Keep as reference during live show
+
+**Verification Performance Metrics:**
+- [ ] Single song verification: ~3 seconds
+- [ ] 5 song setlist: ~15 seconds
+- [ ] 10 song setlist: ~30 seconds
+- [ ] 20 song setlist: ~60 seconds
+- [ ] CPU usage during verification: < 5%
+- [ ] Memory usage: stable (no leaks)
 ---
 
 ## 8. Console Log Verification (DAW Sync)

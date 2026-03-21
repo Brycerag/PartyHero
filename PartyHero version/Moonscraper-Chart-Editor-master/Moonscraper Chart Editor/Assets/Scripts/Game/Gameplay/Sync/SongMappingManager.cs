@@ -15,6 +15,8 @@ namespace MoonscraperChartEditor.Song
         public string dawTrackName;      // Track name from AbleSet/DAW
         public string chartFilePath;     // Full path to .chart, .mid, or .msce file
         public bool enabled = true;      // Allow temporarily disabling mappings
+        public float timelineStartTime = 0f;  // Where this song starts in continuous Ableton timeline (seconds)
+        public float visualPreRoll = 3.0f;    // How many seconds before song start to show chart
 
         public SongMapping() { }
 
@@ -23,6 +25,17 @@ namespace MoonscraperChartEditor.Song
             dawTrackName = trackName;
             chartFilePath = chartPath;
             enabled = true;
+            timelineStartTime = 0f;
+            visualPreRoll = 3.0f;
+        }
+
+        public SongMapping(string trackName, string chartPath, float timelineStart)
+        {
+            dawTrackName = trackName;
+            chartFilePath = chartPath;
+            enabled = true;
+            timelineStartTime = timelineStart;
+            visualPreRoll = 3.0f;
         }
     }
 
@@ -183,20 +196,23 @@ namespace MoonscraperChartEditor.Song
         {
             mappingData = new SongMappingList();
             
-            // Add example mappings (user must edit with real paths)
+            // Add example mappings (user must edit with real paths and timeline positions)
             mappingData.mappings.Add(new SongMapping(
                 "Example Song 1",
-                "C:/Charts/ExampleSong1/notes.chart"
+                "C:/Charts/ExampleSong1/notes.chart",
+                0f    // Starts at 0 seconds in timeline
             ));
             
             mappingData.mappings.Add(new SongMapping(
                 "Example Song 2",
-                "C:/Charts/ExampleSong2/notes.mid"
+                "C:/Charts/ExampleSong2/notes.mid",
+                180f  // Starts at 3:00 (180 seconds) in timeline
             ));
 
             mappingData.mappings.Add(new SongMapping(
                 "Through the Fire and Flames",
-                "C:/Charts/TTFAF/notes.chart"
+                "C:/Charts/TTFAF/notes.chart",
+                360f  // Starts at 6:00 (360 seconds) in timeline
             ));
 
             Debug.Log($"[SongMappingManager] Created {mappingData.mappings.Count} default mappings");
@@ -244,6 +260,12 @@ namespace MoonscraperChartEditor.Song
             }
 
             Debug.Log($"[SongMappingManager] Loading chart: {mapping.chartFilePath}");
+
+            // Set timeline offset in ExternalSyncManager for continuous timeline support
+            if (ExternalSyncManager.Instance != null)
+            {
+                ExternalSyncManager.Instance.SetCurrentSongOffset(mapping.timelineStartTime, mapping.visualPreRoll);
+            }
 
             // Use ChartEditor to load the song
             ChartEditor editor = ChartEditor.Instance;
@@ -312,6 +334,31 @@ namespace MoonscraperChartEditor.Song
         public List<SongMapping> GetAllMappings()
         {
             return mappingData?.mappings ?? new List<SongMapping>();
+        }
+
+        /// <summary>
+        /// Get only enabled mappings (for verification/validation)
+        /// </summary>
+        public List<SongMapping> GetAllEnabledMappings()
+        {
+            List<SongMapping> enabled = new List<SongMapping>();
+            if (mappingData?.mappings != null)
+            {
+                foreach (var mapping in mappingData.mappings)
+                {
+                    if (mapping.enabled)
+                        enabled.Add(mapping);
+                }
+            }
+            return enabled;
+        }
+
+        /// <summary>
+        /// Get total count of mappings (including disabled ones)
+        /// </summary>
+        public int GetMappingCount()
+        {
+            return mappingData?.mappings?.Count ?? 0;
         }
     }
 }

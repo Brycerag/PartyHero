@@ -34,6 +34,14 @@ namespace MoonscraperChartEditor.Song
         [Header("Debug")]
         public Toggle debugOscToggle;
 
+        [Header("Setlist Verification")]
+        public Button verifySetlistButton;
+        public Button cancelVerificationButton;
+        public Text verificationStatusText;
+        public Text verificationProgressText;
+        public Scrollbar verificationProgressBar;
+        public Text verificationResultsText;
+
         void OnEnable()
         {
             LoadCurrentSettings();
@@ -70,6 +78,13 @@ namespace MoonscraperChartEditor.Song
             // Wire up input field callbacks
             if (oscPortInput != null)
                 oscPortInput.onEndEdit.AddListener(OnOscPortChanged);
+
+            // Wire up verification callbacks
+            if (verifySetlistButton != null)
+                verifySetlistButton.onClick.AddListener(OnVerifySetlist);
+
+            if (cancelVerificationButton != null)
+                cancelVerificationButton.onClick.AddListener(OnCancelVerification);
         }
 
         /// <summary>
@@ -173,6 +188,7 @@ namespace MoonscraperChartEditor.Song
             while (true)
             {
                 RefreshConnectionStatus();
+                RefreshVerificationStatus();
                 yield return new WaitForSecondsRealtime(0.2f);
             }
         }
@@ -292,6 +308,110 @@ namespace MoonscraperChartEditor.Song
                     mappingManager.SaveMappings();
                     Application.OpenURL("file:///" + fullPath);
                 }
+            }
+        }
+
+        // ----- Verification Methods -----
+
+        /// <summary>
+        /// Update verification status display
+        /// </summary>
+        void RefreshVerificationStatus()
+        {
+            SetlistVerifier verifier = SetlistVerifier.Instance;
+            if (verifier == null)
+                return;
+
+            // Update verification button state
+            if (verifySetlistButton != null)
+            {
+                verifySetlistButton.interactable = !verifier.isVerifying && ExternalSyncManager.Instance != null && ExternalSyncManager.Instance.IsSyncActive();
+            }
+
+            if (cancelVerificationButton != null)
+            {
+                cancelVerificationButton.interactable = verifier.isVerifying;
+            }
+
+            // Update status text
+            if (verificationStatusText != null)
+            {
+                if (verifier.isVerifying)
+                {
+                    verificationStatusText.text = $"Verifying... {verifier.songsVerified}/{verifier.totalSongs}";
+                    verificationStatusText.color = Color.yellow;
+                }
+                else if (verifier.results.Count > 0)
+                {
+                    if (verifier.songsFailed == 0)
+                    {
+                        verificationStatusText.text = "✓ All songs verified successfully!";
+                        verificationStatusText.color = Color.green;
+                    }
+                    else
+                    {
+                        verificationStatusText.text = $"✗ {verifier.songsFailed} songs failed verification";
+                        verificationStatusText.color = Color.red;
+                    }
+                }
+                else
+                {
+                    verificationStatusText.text = "Ready to verify setlist";
+                    verificationStatusText.color = Color.gray;
+                }
+            }
+
+            // Update progress bar
+            if (verificationProgressBar != null)
+            {
+                verificationProgressBar.size = verifier.GetProgress() / 100f;
+            }
+
+            // Update progress text
+            if (verificationProgressText != null)
+            {
+                if (verifier.isVerifying)
+                {
+                    verificationProgressText.text = $"{verifier.GetProgress():F0}% ({verifier.songsVerified}/{verifier.totalSongs})";
+                }
+                else if (verifier.results.Count > 0)
+                {
+                    verificationProgressText.text = $"Passed: {verifier.songsPassed} | Failed: {verifier.songsFailed}";
+                }
+                else
+                {
+                    verificationProgressText.text = "No verification run yet";
+                }
+            }
+
+            // Update results text
+            if (verificationResultsText != null)
+            {
+                verificationResultsText.text = verifier.GetResultsText();
+            }
+        }
+
+        void OnVerifySetlist()
+        {
+            SetlistVerifier verifier = SetlistVerifier.Instance;
+            if (verifier != null)
+            {
+                Debug.Log("[DawSyncSettings] Starting setlist verification...");
+                verifier.VerifySetlist();
+            }
+            else
+            {
+                Debug.LogError("[DawSyncSettings] SetlistVerifier not found");
+            }
+        }
+
+        void OnCancelVerification()
+        {
+            SetlistVerifier verifier = SetlistVerifier.Instance;
+            if (verifier != null)
+            {
+                Debug.Log("[DawSyncSettings] Cancelling verification...");
+                verifier.CancelVerification();
             }
         }
 

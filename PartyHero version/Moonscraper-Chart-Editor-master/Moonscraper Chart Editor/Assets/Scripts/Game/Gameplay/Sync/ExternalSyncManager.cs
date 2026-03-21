@@ -32,7 +32,7 @@ namespace MoonscraperChartEditor.Song
         [Tooltip("Is DAW currently playing?")]
         public bool isPlaying = false;
 
-        [Tooltip("Current DAW time in seconds")]
+        [Tooltip("Current DAW time in seconds (absolute timeline position)")]
         public float currentTime = 0f;
 
         [Tooltip("Current beat position from DAW")]
@@ -44,6 +44,20 @@ namespace MoonscraperChartEditor.Song
         [Tooltip("Current track/song name from DAW")]
         public string currentTrackName = "";
 
+        [Header("Timeline Offset (for continuous timelines)")]
+        [Tooltip("Where current song starts in DAW timeline (set by SongMappingManager)")]
+        public float currentSongTimelineStart = 0f;
+
+        [Tooltip("Visual pre-roll for current song (seconds before song start)")]
+        public float currentSongPreRoll = 3.0f;
+
+        [Header("OSC Output (Sending to DAW)")]
+        [Tooltip("IP address of DAW/AbleSet to send commands to")]
+        public string dawIpAddress = "127.0.0.1";
+
+        [Tooltip("Port to send OSC commands to DAW/AbleSet (AbleSet default: 39045)")]
+        public int oscOutputPort = 39045;
+
         [Header("Debug")]
         [Tooltip("Log received OSC messages to console")]
         public bool debugOscMessages = false;
@@ -52,7 +66,9 @@ namespace MoonscraperChartEditor.Song
         public float lastMessageTime = 0f;
 
         // Private fields
-        private UdpClient udpClient;
+        private UdpClient udpClient;          // For receiving OSC
+        private UdpClient sendClient;         // For sending OSC
+        private IPEndPoint sendEndPoint;      // Target for sending
         private Thread receiveThread;
         private bool isReceiving = false;
         private object stateLock = new object();
@@ -83,6 +99,9 @@ namespace MoonscraperChartEditor.Song
             {
                 StartOscReceiver();
             }
+
+            // Initialize OSC sending client
+            InitializeSendClient();
         }
 
         void Update()
@@ -107,11 +126,13 @@ namespace MoonscraperChartEditor.Song
         void OnDestroy()
         {
             StopOscReceiver();
+            DisposeSendClient();
         }
 
         void OnApplicationQuit()
         {
             StopOscReceiver();
+            DisposeSendClient();
         }
 
         public void StartOscReceiver()
@@ -268,6 +289,58 @@ namespace MoonscraperChartEditor.Song
         }
 
         /// <summary>
+        /// Get song-relative time (for continuous timelines).
+        /// Converts absolute DAW timeline position to time within current song.
+        /// </summary>
+        public float GetSongRelativeTime()
+        {
+            return currentTime - currentSongTimelineStart;
+        }
+
+        /// <summary>
+        /// Get visual display time for chart scrolling.
+        /// 
+        /// READY STATE (DAW paused):
+        ///   - Chart frozen at -visualPreRoll (e.g., -3.0s)
+        ///   - Band can see upcoming notes while getting ready
+        /// 
+        /// PLAYING STATE (DAW playing):
+        ///   - Chart immediately syncs to song-relative time
+        ///   - If Ableton timeline has count-in bars BEFORE song start, they scroll naturally
+        ///   - Example: DAW at -3s (count-in) → chart shows -3s and scrolls to 0s
+        /// </summary>
+        public float GetDisplayTime()
+        {
+            float songRelativeTime = GetSongRelativeTime();
+            
+            // If DAW is paused/stopped, hold at pre-roll position (ready state)
+            // This lets the band see the chart and get ready before drummer starts playback
+            if (!isPlaying)
+            {
+                // Hold chart at negative pre-roll position (e.g., -3.0s)
+                // Band can see upcoming notes but chart doesn't scroll yet
+                return -currentSongPreRoll;
+            }
+            
+            // DAW is playing - immediately sync to actual song-relative position
+            // No additional offset needed - Ableton timeline already has count-in built in
+            // Example: If DAW is at 222s and song starts at 225s, show -3s (count-in)
+            return songRelativeTime;
+        }
+
+        /// <summary>
+        /// Set timeline offset for currently loaded song.
+        /// Called by SongMappingManager when a song is loaded.
+        /// </summary>
+        public void SetCurrentSongOffset(float timelineStart, float preRoll)
+        {
+            currentSongTimelineStart = timelineStart;
+            currentSongPreRoll = preRoll;
+            
+            Debug.Log($"[ExternalSyncManager] Song offset set - Timeline start: {timelineStart}s, Pre-roll: {preRoll}s");
+        }
+
+        /// <summary>
         /// Is external sync currently active and receiving data?
         /// </summary>
         public bool IsSyncActive()
@@ -325,6 +398,177 @@ namespace MoonscraperChartEditor.Song
             if (wasEnabled)
                 StartOscReceiver();
         }
+
+        // ==================== OSC SENDING METHODS ====================
+
+        private void InitializeSendClient()
+        {
+            try
+            {
+                sendClient = new UdpClient();
+                UpdateSendEndpoint();
+                Debug.Log($"[ExternalSyncManager] OSC send client initialized ({dawIpAddress}:{oscOutputPort})");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[ExternalSyncManager] Failed to initialize OSC send client: {e.Message}");
+            }
+        }
+
+        private void UpdateSendEndpoint()
+        {
+            try
+            {
+                IPAddress address = IPAddress.Parse(dawIpAddress);
+                sendEndPoint = new IPEndPoint(address, oscOutputPort);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[ExternalSyncManager] Invalid DAW IP address '{dawIpAddress}': {e.Message}");
+                // Fallback to localhost
+                sendEndPoint = new IPEndPoint(IPAddress.Loopback, oscOutputPort);
+            }
+        }
+
+        private void DisposeSendClient()
+        {
+            if (sendClient != null)
+            {
+                sendClient.Close();
+                sendClient = null;
+            }
+        }
+
+        /// <summary>
+        /// Build an OSC message as a byte array.
+        /// OSC format: [address][,types][args...]
+        /// All elements are null-terminated and 4-byte aligned.
+        /// </summary>
+        private byte[] BuildOscMessage(string address, params object[] args)
+        {
+            System.Collections.Generic.List<byte> data = new System.Collections.Generic.List<byte>();
+
+            // Add address (null-terminated, 4-byte aligned)
+            byte[] addressBytes = System.Text.Encoding.ASCII.GetBytes(address);
+            data.AddRange(addressBytes);
+            data.Add(0); // null terminator
+            while (data.Count % 4 != 0) data.Add(0); // padding
+
+            // Build type tag string
+            System.Text.StringBuilder typeTag = new System.Text.StringBuilder(",");
+            foreach (var arg in args)
+            {
+                if (arg is int || arg is bool) typeTag.Append('i');
+                else if (arg is float) typeTag.Append('f');
+                else if (arg is string) typeTag.Append('s');
+                else typeTag.Append('i'); // default to int
+            }
+
+            // Add type tag (null-terminated, 4-byte aligned)
+            byte[] typeBytes = System.Text.Encoding.ASCII.GetBytes(typeTag.ToString());
+            data.AddRange(typeBytes);
+            data.Add(0); // null terminator
+            while (data.Count % 4 != 0) data.Add(0); // padding
+
+            // Add arguments
+            foreach (var arg in args)
+            {
+                if (arg is int)
+                {
+                    int val = (int)arg;
+                    data.Add((byte)((val >> 24) & 0xFF));
+                    data.Add((byte)((val >> 16) & 0xFF));
+                    data.Add((byte)((val >> 8) & 0xFF));
+                    data.Add((byte)(val & 0xFF));
+                }
+                else if (arg is bool)
+                {
+                    int val = (bool)arg ? 1 : 0;
+                    data.Add((byte)((val >> 24) & 0xFF));
+                    data.Add((byte)((val >> 16) & 0xFF));
+                    data.Add((byte)((val >> 8) & 0xFF));
+                    data.Add((byte)(val & 0xFF));
+                }
+                else if (arg is float)
+                {
+                    byte[] floatBytes = System.BitConverter.GetBytes((float)arg);
+                    if (System.BitConverter.IsLittleEndian)
+                        System.Array.Reverse(floatBytes); // Convert to big-endian
+                    data.AddRange(floatBytes);
+                }
+                else if (arg is string)
+                {
+                    byte[] strBytes = System.Text.Encoding.ASCII.GetBytes((string)arg);
+                    data.AddRange(strBytes);
+                    data.Add(0); // null terminator
+                    while (data.Count % 4 != 0) data.Add(0); // padding
+                }
+            }
+
+            return data.ToArray();
+        }
+
+        /// <summary>
+        /// Send an OSC message to the configured DAW/AbleSet.
+        /// </summary>
+        public bool SendOscMessage(string address, params object[] args)
+        {
+            if (sendClient == null || sendEndPoint == null)
+            {
+                Debug.LogWarning("[ExternalSyncManager] OSC send client not initialized");
+                return false;
+            }
+
+            try
+            {
+                byte[] message = BuildOscMessage(address, args);
+                sendClient.Send(message, message.Length, sendEndPoint);
+
+                if (debugOscMessages)
+                {
+                    string argsStr = string.Join(", ", args);
+                    Debug.Log($"[ExternalSyncManager] Sent OSC: {address} [{argsStr}]");
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[ExternalSyncManager] Failed to send OSC message '{address}': {e.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Tell AbleSet to jump to a specific song/track by name.
+        /// Uses AbleSet's OSC API: /ableset/jump/project [string]
+        /// </summary>
+        public bool CueSong(string trackName)
+        {
+            return SendOscMessage("/ableset/jump/project", trackName);
+        }
+
+        /// <summary>
+        /// Tell AbleSet to jump to a specific timeline position.
+        /// Uses AbleSet's OSC API: /ableset/jump/time [float]
+        /// </summary>
+        public bool JumpToTime(float seconds)
+        {
+            return SendOscMessage("/ableset/jump/time", seconds);
+        }
+
+        /// <summary>
+        /// Update DAW IP address and output port (reinitializes send endpoint).
+        /// </summary>
+        public void SetDawAddress(string ipAddress, int port)
+        {
+            dawIpAddress = ipAddress;
+            oscOutputPort = port;
+            UpdateSendEndpoint();
+            Debug.Log($"[ExternalSyncManager] DAW address updated to {dawIpAddress}:{oscOutputPort}");
+        }
+
+        // ==================== CONNECTION STATUS ====================
 
         public string GetConnectionStatus()
         {
