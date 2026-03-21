@@ -82,6 +82,9 @@ public class BaseGameplayRulestate {
         ++stats.notesHit;
         ++stats.totalNotes;
 
+        if (MidiOutputManager.Instance != null)
+            MidiOutputManager.Instance.OnNoteHit();
+
         Note note = noteHitKnowledge.note;
         note.EnumerateChord(setNoteHitFn);
     }
@@ -101,6 +104,9 @@ public class BaseGameplayRulestate {
         {
             missFeedbackFn();
         }
+
+        if (MidiOutputManager.Instance != null)
+            MidiOutputManager.Instance.OnNoteMiss();
 
         stats.noteStreak = 0;
 
