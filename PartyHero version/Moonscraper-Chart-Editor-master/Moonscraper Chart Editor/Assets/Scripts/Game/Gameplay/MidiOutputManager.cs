@@ -7,6 +7,8 @@ using System;
 using System.Net.Sockets;
 using UnityEngine;
 using NAudio.Midi;
+using MoonscraperChartEditor.Song;
+using MidiProtocols;
 
 public class MidiOutputManager : MonoBehaviour
 {
@@ -72,6 +74,16 @@ public class MidiOutputManager : MonoBehaviour
     [Tooltip("When true, MIDI messages will not be sent (useful for testing without hardware).")]
     public bool muteOutput = false;
 
+    [Header("Mixer Control Protocol")]
+    [Tooltip("Protocol used for mixer channel mute/unmute control.")]
+    public MidiProtocols.ProtocolType protocolType = MidiProtocols.ProtocolType.MackieControl;
+
+    [Tooltip("Per-instrument mixer channel mappings.")]
+    public InstrumentMidiChannelMap instrumentChannelMap = new InstrumentMidiChannelMap();
+
+    [Tooltip("Enable automatic mute/unmute when switching instruments in editor/gameplay.")]
+    public bool enableInstrumentTracking = true;
+
     // -------------------------------------------------------------------------
     // Private state
     // -------------------------------------------------------------------------
@@ -86,6 +98,9 @@ public class MidiOutputManager : MonoBehaviour
     string networkStatus = "Network connection stopped.";
     NetworkConnectionState networkConnectionState = NetworkConnectionState.Stopped;
 
+    IMidiProtocol currentProtocol;
+    Song.Instrument lastTrackedInstrument = Song.Instrument.Guitar;
+
     // -------------------------------------------------------------------------
     // Unity lifecycle
     // -------------------------------------------------------------------------
@@ -98,6 +113,9 @@ public class MidiOutputManager : MonoBehaviour
         }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+
+        // Initialize protocol
+        currentProtocol = MidiProtocolFactory.CreateProtocol(protocolType);
 
         if (transportMode == TransportMode.LocalMidiDevice)
         {
@@ -115,6 +133,7 @@ public class MidiOutputManager : MonoBehaviour
     void Update()
     {
         TickNetworkConnection();
+        TickInstrumentTracking();
     }
 
     void OnDestroy()
@@ -403,6 +422,134 @@ public class MidiOutputManager : MonoBehaviour
         tcpConnectInProgress = false;
         nextConnectAttemptTime = Time.unscaledTime + Mathf.Max(0.5f, reconnectRetrySeconds);
         networkConnectionState = NetworkConnectionState.RetryWait;
+    }
+
+    // -------------------------------------------------------------------------
+    // Instrument tracking & protocol-based mixer control
+    // -------------------------------------------------------------------------
+
+    void TickInstrumentTracking()
+    {
+        if (!enableInstrumentTracking)
+            return;
+
+       // Track changes to MenuBar.currentInstrument in the editor
+        try
+        {
+            Song.Instrument currentInstrument = MenuBar.currentInstrument;
+
+            if (currentInstrument != lastTrackedInstrument)
+            {
+                OnInstrumentChanged(lastTrackedInstrument, currentInstrument);
+                lastTrackedInstrument = currentInstrument;
+            }
+        }
+        catch
+        {
+            // MenuBar might not be available in all contexts (e.g. during tests)
+        }
+    }
+
+    /// <summary>Called when the active instrument changes. Sends protocol-based mute/unmute to mixer.</summary>
+    public void OnInstrumentChanged(Song.Instrument oldInstrument, Song.Instrument newInstrument)
+    {
+        if (muteOutput || instrumentChannelMap == null)
+            return;
+
+        // Mute the old instrument's channel
+        if (instrumentChannelMap.IsEnabled(oldInstrument))
+        {
+            int oldChannel = instrumentChannelMap.GetMixerChannel(oldInstrument);
+            SendInstrumentMute(oldChannel, true);
+        }
+
+        // Unmute the new instrument's channel
+        if (instrumentChannelMap.IsEnabled(newInstrument))
+        {
+            int newChannel = instrumentChannelMap.GetMixerChannel(newInstrument);
+            SendInstrumentMute(newChannel, false);
+        }
+    }
+
+    /// <summary>Send protocol-specific mute/unmute command for a mixer channel.</summary>
+    public void SendInstrumentMute(int mixerChannel, bool muted)
+    {
+        if (muteOutput || currentProtocol == null)
+            return;
+
+        currentProtocol.SendMute(mixerChannel, muted, SendRawBytes);
+    }
+
+    /// <summary>Send protocol-specific unmute command for a mixer channel.</summary>
+    public void SendInstrumentUnmute(int mixerChannel)
+    {
+        SendInstrumentMute(mixerChannel, false);
+    }
+
+    /// <summary>Low-level callback for protocol implementations to send raw MIDI bytes.</summary>
+    void SendRawBytes(byte[] data)
+    {
+        if (muteOutput || data == null || data.Length == 0)
+            return;
+
+        if (transportMode == TransportMode.LocalMidiDevice)
+        {
+            if (midiOut == null)
+                return;
+
+            try
+            {
+                // For short messages (3 bytes), pack into int and send
+                if (data.Length == 3)
+                {
+                    int message = (data[2] << 16) | (data[1] << 8) | data[0];
+                    midiOut.Send(message);
+                }
+                else
+                {
+                    // For longer messages, NAudio can handle them differently
+                    // This would require SysEx support which NAudio.WinMM has
+                    Debug.LogWarning("[MidiOutputManager] Long MIDI messages not yet supported via local device");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogErrorFormat("[MidiOutputManager] Failed to send raw MIDI via local device: {0}", ex.Message);
+            }
+            return;
+        }
+
+        // TCP mode sends raw bytes directly
+        if (!IsTcpConnected())
+            return;
+
+        try
+        {
+            tcpStream.Write(data, 0, data.Length);
+            tcpStream.Flush();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogErrorFormat("[MidiOutputManager] Failed to send raw MIDI via TCP: {0}", ex.Message);
+            DisconnectTcp();
+            networkStatus = string.Format("Connection lost: {0}. Will retry.", ex.Message);
+            networkConnectionState = NetworkConnectionState.RetryWait;
+
+            if (networkConnectionRequested)
+                ScheduleRetry();
+        }
+    }
+
+    public void SetProtocol(MidiProtocols.ProtocolType type)
+    {
+        protocolType = type;
+        currentProtocol = MidiProtocolFactory.CreateProtocol(type);
+        Debug.LogFormat("[MidiOutputManager] Protocol changed to: {0}", currentProtocol.Name);
+    }
+
+    public InstrumentMidiChannelMap GetInstrumentChannelMap()
+    {
+        return instrumentChannelMap;
     }
 
     // -------------------------------------------------------------------------

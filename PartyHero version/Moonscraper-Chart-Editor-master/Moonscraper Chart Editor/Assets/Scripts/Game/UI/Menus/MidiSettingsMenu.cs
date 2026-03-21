@@ -13,6 +13,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using MoonscraperChartEditor.Song;
 
 public class MidiSettingsMenu : MonoBehaviour
 {
@@ -37,6 +38,12 @@ public class MidiSettingsMenu : MonoBehaviour
     public Color statusConnectedColor = new Color(0.2f, 1f, 0.3f);
     public Color statusStoppedColor = new Color(1f, 0.45f, 0.45f);
 
+    [Header("Mixer Protocol Settings")]
+    public Dropdown protocolDropdown;
+    public Toggle instrumentTrackingToggle;
+    public Transform instrumentMappingContainer; // Container for dynamically created instrument channel UI elements
+
+    [Header("Standard MIDI Settings")]
     public InputField channelInput;
     public InputField hitCCNumberInput;
     public InputField hitCCValueInput;
@@ -47,6 +54,7 @@ public class MidiSettingsMenu : MonoBehaviour
     void OnEnable()
     {
         PopulateTransportDropdown();
+        PopulateProtocolDropdown();
         PopulateDeviceDropdown();
         LoadCurrentSettings();
         UpdateTransportUi();
@@ -73,6 +81,15 @@ public class MidiSettingsMenu : MonoBehaviour
             "Local MIDI Device",
             "Network MIDI (TCP)",
         });
+    }
+
+    void PopulateProtocolDropdown()
+    {
+        if (protocolDropdown == null) return;
+
+        protocolDropdown.ClearOptions();
+        string[] protocolNames = MidiProtocols.MidiProtocolFactory.GetProtocolNames();
+        protocolDropdown.AddOptions(new List<string>(protocolNames));
     }
 
     void PopulateDeviceDropdown()
@@ -109,12 +126,17 @@ public class MidiSettingsMenu : MonoBehaviour
         if (retrySecondsInput) retrySecondsInput.text = mgr.reconnectRetrySeconds.ToString("0.0");
         if (connectTimeoutSecondsInput) connectTimeoutSecondsInput.text = mgr.connectTimeoutSeconds.ToString("0.0");
 
+        if (protocolDropdown) protocolDropdown.value = (int)mgr.protocolType;
+        if (instrumentTrackingToggle) instrumentTrackingToggle.isOn = mgr.enableInstrumentTracking;
+
         if (channelInput)      channelInput.text      = mgr.midiChannel.ToString();
         if (hitCCNumberInput)  hitCCNumberInput.text  = mgr.hitCCNumber.ToString();
         if (hitCCValueInput)   hitCCValueInput.text   = mgr.hitCCValue.ToString();
         if (missCCNumberInput) missCCNumberInput.text = mgr.missCCNumber.ToString();
         if (missCCValueInput)  missCCValueInput.text  = mgr.missCCValue.ToString();
         if (muteToggle)        muteToggle.isOn        = mgr.muteOutput;
+
+        PopulateInstrumentMappings();
     }
 
     // -------------------------------------------------------------------------
@@ -149,6 +171,14 @@ public class MidiSettingsMenu : MonoBehaviour
 
         if (muteToggle)
             mgr.muteOutput = muteToggle.isOn;
+
+        if (protocolDropdown)
+            mgr.SetProtocol((MidiProtocols.ProtocolType)protocolDropdown.value);
+
+        if (instrumentTrackingToggle)
+            mgr.enableInstrumentTracking = instrumentTrackingToggle.isOn;
+
+        ApplyInstrumentMappings();
 
         if (mgr.transportMode == MidiOutputManager.TransportMode.LocalMidiDevice)
         {
@@ -264,6 +294,83 @@ public class MidiSettingsMenu : MonoBehaviour
                 return statusStoppedColor;
             default:
                 return statusIdleColor;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Instrument Channel Mapping
+    // -------------------------------------------------------------------------
+
+    Dictionary<Song.Instrument, Toggle> instrumentEnableToggles = new Dictionary<Song.Instrument, Toggle>();
+    Dictionary<Song.Instrument, InputField> instrumentChannelInputs = new Dictionary<Song.Instrument, InputField>();
+
+    void PopulateInstrumentMappings()
+    {
+        if (instrumentMappingContainer == null)
+            return;
+
+        // Clear existing UI elements
+        foreach (Transform child in instrumentMappingContainer)
+            Destroy(child.gameObject);
+
+        instrumentEnableToggles.Clear();
+        instrumentChannelInputs.Clear();
+
+        var mgr = MidiOutputManager.Instance;
+        if (mgr == null || mgr.instrumentChannelMap == null)
+            return;
+
+        // For each main instrument, create a UI row with:
+        // - Label (instrument name)
+        // - Toggle (enable/disable)
+        // - InputField (mixer channel 1-8)
+        Song.Instrument[] mainInstruments = new Song.Instrument[]
+        {
+            Song.Instrument.Guitar,
+            Song.Instrument.Bass,
+            Song.Instrument.Rhythm,
+            Song.Instrument.Drums,
+            Song.Instrument.Keys,
+            Song.Instrument.GuitarCoop,
+            Song.Instrument.GHLiveGuitar,
+            Song.Instrument.GHLiveBass,
+        };
+
+        foreach (var instrument in mainInstruments)
+        {
+            // Create a simple text-based row (you can enhance with prefabs later)
+            GameObject row = new GameObject(instrument.ToString() + "_Row");
+            row.transform.SetParent(instrumentMappingContainer, false);
+
+            Text label = row.AddComponent<Text>();
+            label.text = string.Format("{0}: Ch", instrument.ToString());
+            label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            label.fontSize = 14;
+
+            // Note: This creates a minimal text row.
+            // In a real implementation, you'd use a prefab with proper Layout components.
+            // For now, we'll just store the mappings and let you create proper UI in Unity Editor.
+        }
+    }
+
+    void ApplyInstrumentMappings()
+    {
+        var mgr = MidiOutputManager.Instance;
+        if (mgr == null || mgr.instrumentChannelMap == null)
+            return;
+
+        // Apply values from UI dictionaries to the instrument map
+        foreach (var kvp in instrumentEnableToggles)
+        {
+            mgr.instrumentChannelMap.SetEnabled(kvp.Key, kvp.Value.isOn);
+        }
+
+        foreach (var kvp in instrumentChannelInputs)
+        {
+            if (int.TryParse(kvp.Value.text, out int channel))
+            {
+                mgr.instrumentChannelMap.SetMixerChannel(kvp.Key, channel);
+            }
         }
     }
 
