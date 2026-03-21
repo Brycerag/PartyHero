@@ -279,6 +279,44 @@
 - [ ] "Reconnect Now" button OnClick → `MidiSettingsMenu.OnReconnectPressed()`
 - [ ] Transport dropdown OnValueChanged → `MidiSettingsMenu.OnTransportModeChanged()`
 
+### ExternalSyncManager GameObject
+- [ ] Component attached: `ExternalSyncManager`
+- [ ] OSC Port: 39043 (or custom port for your setup)
+- [ ] Sync Enabled: false (enable via UI when ready)
+- [ ] Debug OSC Messages: false (enable for troubleshooting)
+
+### SongMappingManager GameObject
+- [ ] Component attached: `SongMappingManager`
+- [ ] Mapping File Path: "../songsync_mapping.json" (relative to project folder)
+- [ ] Auto Load Enabled: false (enable via UI when ready)
+- [ ] Auto Load Delay: 0.5 seconds
+
+### DawSyncSettingsMenu Component
+- [ ] Component attached: `DawSyncSettingsMenu`
+- [ ] Sync Enabled Toggle: assigned
+- [ ] Auto Load Songs Toggle: assigned
+- [ ] OSC Port Input: assigned
+- [ ] Connection Status Text: assigned
+- [ ] Refresh Connection Button: assigned
+- [ ] DAW Playing Status Text: assigned
+- [ ] DAW Time Text: assigned
+- [ ] DAW Tempo Text: assigned
+- [ ] DAW Track Name Text: assigned
+- [ ] Mapping File Path Text: assigned
+- [ ] Reload Mappings Button: assigned
+- [ ] Open Mapping File Button: assigned
+- [ ] Mapping Count Text: assigned
+- [ ] Debug OSC Toggle: assigned
+
+### DAW Sync UI Buttons
+- [ ] Refresh button OnClick → `DawSyncSettingsMenu.OnRefreshConnection()`
+- [ ] Reload Mappings button OnClick → `DawSyncSettingsMenu.OnReloadMappings()`
+- [ ] Open Mapping File button OnClick → `DawSyncSettingsMenu.OnOpenMappingFile()`
+- [ ] Sync Enabled toggle OnValueChanged → `DawSyncSettingsMenu.OnSyncEnabledChanged()`
+- [ ] Auto Load toggle OnValueChanged → `DawSyncSettingsMenu.OnAutoLoadChanged()`
+- [ ] Debug OSC toggle OnValueChanged → `DawSyncSettingsMenu.OnDebugOscChanged()`
+- [ ] OSC Port input OnEndEdit → `DawSyncSettingsMenu.OnOscPortChanged()`
+
 ---
 
 ## Hardware Testing (Optional)
@@ -295,6 +333,18 @@
 - [ ] Switch instruments in editor → mixer channels mute/unmute
 - [ ] Verify correct channels respond (1-8)
 - [ ] Test with actual audio routed through mixer
+
+### With AbleSet + Ableton Live (Full Band Setup)
+- [ ] AbleSet configured to send OSC to Clone Hero (Settings → OSC → Output)
+- [ ] OSC messages enabled for: playback state, time, tempo, track name
+- [ ] Output host: Clone Hero computer IP address
+- [ ] Output port: 39043 (match Clone Hero OSC port)
+- [ ] Load setlist in AbleSet with songs matching Clone Hero mapping JSON
+- [ ] Drummer controls playback via Ableton/AbleSet
+- [ ] Clone Hero chart scrolling stays locked with Ableton playback
+- [ ] Song changes in setlist auto-load charts in Clone Hero
+- [ ] All band members hear identical timing (no drift over 5+ minute songs)
+- [ ] MIDI mixer control (mute/unmute) works simultaneously with DAW sync
 
 ---
 
@@ -325,6 +375,232 @@
 - `[MidiOutputManager] Connection timed out. Will retry.`
 - `[MidiOutputManager] Failed to send MIDI message: [error]`
 - `[MidiSettingsMenu] No MidiOutputManager instance found in scene.`
+
+---
+
+## 7. External DAW Synchronization (OSC)
+
+### Pre-Test Setup
+- [ ] ExternalSyncManager GameObject exists in scene with component attached
+- [ ] SongMappingManager GameObject exists in scene with component attached
+- [ ] DawSyncSettingsMenu component attached to DAW sync panel UI
+- [ ] Song mapping JSON file created at project root: `songsync_mapping.json`
+- [ ] All UI references assigned in DawSyncSettingsMenu Inspector
+
+### OSC Connection
+
+**Test with OSC Test Sender (e.g., OSCSend, TouchOSC, or AbleSet)**
+
+- [ ] Open DAW Sync settings panel
+- [ ] Verify default OSC port (39043) is displayed
+- [ ] Enable "External Sync Enabled" toggle
+- [ ] Connection status shows: "Listening on port 39043, waiting for messages..."
+- [ ] Send test OSC message `/playback/time 0.5` to localhost:39043
+  - [ ] Status changes to "Connected (last message X.Xs ago)"
+  - [ ] Status text color: green
+- [ ] Stop sending OSC messages for 3+ seconds
+  - [ ] Status shows: "Connection timeout (last message X.Xs ago)"
+
+### OSC Message Parsing
+
+**Send various OSC messages and verify parsing:**
+
+- [ ] Send `/playback/playing 1` → DAW status shows "Playing ▶" (green)
+- [ ] Send `/playback/playing 0` → DAW status shows "Stopped ■" (red)
+- [ ] Send `/playback/time 123.456` → Time display shows "Time: 02:03.456"
+- [ ] Send `/tempo 140.5` → Tempo display shows "Tempo: 140.5 BPM"
+- [ ] Send `/track/name "Welcome to the Jungle"` → Track display shows "Track: Welcome to the Jungle"
+- [ ] Enable "Debug OSC Messages" toggle
+  - [ ] Console shows each received OSC message with address and arguments
+- [ ] Disable debug toggle → console logging stops
+
+### OSC Alternative Address Patterns
+
+**Verify alternate OSC address support:**
+
+- [ ] Send `/playing 1` (short form) → parsed correctly
+- [ ] Send `/time 5.0` (short form) → parsed correctly
+- [ ] Send `/playback/tempo 130` → parsed correctly
+- [ ] Send `/song/name "Test Song"` → parsed correctly
+
+### Port Configuration
+
+- [ ] Change OSC port from 39043 to 8000
+- [ ] Click outside input field to apply
+- [ ] Console shows: "OSC port changed to 8000"
+- [ ] Send OSC message to port 8000 → received correctly
+- [ ] Send to old port 39043 → not received (as expected)
+- [ ] Change port back to 39043 for remaining tests
+
+### Sync Time Integration
+
+**Test chart scrolling sync with external DAW:**
+
+- [ ] Load a chart file in Clone Hero
+- [ ] Enable External Sync
+- [ ] Start playback in Clone Hero (internal audio muted recommended)
+- [ ] Send `/playback/time 0.0` → chart position resets to start
+- [ ] Send `/playback/time 10.0` → chart jumps to 10 second mark
+- [ ] Send continuous time updates (e.g., 0.0, 0.1, 0.2, 0.3...)
+  - [ ] Chart scrolls smoothly following external time
+  - [ ] No jittering or stuttering
+- [ ] Disable External Sync
+  - [ ] Chart ignores OSC time, uses internal audio
+
+### Song Selection Mapping
+
+**Edit `songsync_mapping.json`:**
+
+```json
+{
+  "mappings": [
+    {
+      "dawTrackName": "Test Song 1",
+      "chartFilePath": "C:/path/to/chart1/notes.chart",
+      "enabled": true
+    },
+    {
+      "dawTrackName": "Test Song 2",
+      "chartFilePath": "C:/path/to/chart2/notes.chart",
+      "enabled": true
+    }
+  ]
+}
+```
+
+- [ ] Click "Open Mapping File" button
+  - [ ] JSON file opens in default text editor
+  - [ ] If file doesn't exist, default mappings are created
+- [ ] Edit mappings with real chart paths
+- [ ] Save JSON file
+- [ ] Click "Reload Mappings" button
+  - [ ] Console shows: "Loaded X song mappings from [path]"
+  - [ ] Mapping count shows: "X/X mappings active"
+
+### Automatic Song Loading
+
+- [ ] Enable "Auto-Load Songs" toggle
+- [ ] Make sure External Sync is enabled
+- [ ] Send OSC message `/track/name "Test Song 1"`
+  - [ ] After 0.5 second delay, chart loads automatically
+  - [ ] Console shows: "Loading chart: C:/path/to/chart1/notes.chart"
+- [ ] Send `/track/name "Test Song 2"`
+  - [ ] Different chart loads after delay
+- [ ] Send `/track/name "Unknown Song"`
+  - [ ] Console warning: "No mapping found for track: Unknown Song"
+  - [ ] Current chart remains loaded
+- [ ] Disable "Auto-Load Songs" toggle
+  - [ ] Send track name changes → no auto-loading occurs
+
+### Mapping Enable/Disable
+
+**Edit JSON to disable a mapping:**
+
+```json
+{
+  "dawTrackName": "Test Song 1",
+  "chartFilePath": "C:/path/to/chart1/notes.chart",
+  "enabled": false
+}
+```
+
+- [ ] Reload mappings
+- [ ] Mapping count shows: "1/2 mappings active" (one disabled)
+- [ ] Send `/track/name "Test Song 1"` with auto-load enabled
+  - [ ] Console shows: "Mapping disabled for track: Test Song 1"
+  - [ ] Chart does not load
+
+### Invalid Chart Paths
+
+**Edit JSON with non-existent path:**
+
+- [ ] Set `chartFilePath` to fake path: `C:/nonexistent/file.chart`
+- [ ] Reload mappings
+- [ ] Send matching track name with auto-load enabled
+  - [ ] Console error: "Chart file not found: C:/nonexistent/file.chart"
+  - [ ] No crash or freeze
+
+### Combined MIDI + DAW Sync Test
+
+- [ ] Enable both MIDI output and DAW sync
+- [ ] Connect MIDI to mixer (TCP or local device)
+- [ ] Enable instrument tracking
+- [ ] Send `/playback/playing 1` from DAW
+- [ ] Send time updates to scroll chart
+- [ ] Switch instruments in editor
+  - [ ] Mackie mute/unmute messages still sent correctly
+- [ ] Trigger hit/miss during playback
+  - [ ] MIDI CC messages sent despite DAW sync active
+- [ ] Both systems run simultaneously without conflict
+
+### AbleSet Integration Test (Live Hardware)
+
+**With actual AbleSet controlling Ableton Live:**
+
+- [ ] Configure AbleSet to send OSC to Clone Hero IP:port
+- [ ] Enable External Sync in Clone Hero
+- [ ] Load setlist in AbleSet matching song mappings
+- [ ] Play song in Ableton
+  - [ ] Clone Hero status shows "Playing"
+  - [ ] Chart scrolls in perfect sync with Ableton playback
+  - [ ] Tempo changes in Ableton reflect in sync display
+- [ ] Change to next song in AbleSet
+  - [ ] Clone Hero auto-loads matching chart (if mapped)
+- [ ] Stop playback in Ableton
+  - [ ] Clone Hero status shows "Stopped"
+- [ ] Drummer starts playback from Ableton/AbleSet
+  - [ ] Clone Hero immediately starts in sync
+  - [ ] Band/game stays perfectly locked throughout song
+
+### Error Handling & Edge Cases
+
+- [ ] Start Clone Hero without DAW/OSC sender running
+  - [ ] Connection status: "Listening... waiting for messages"
+  - [ ] No errors or crashes
+- [ ] Send malformed OSC packets (garbage bytes) to port
+  - [ ] Messages ignored gracefully
+  - [ ] No crashes
+- [ ] Send very high tempo (e.g., 999 BPM)
+  - [ ] Clamped or handled gracefully (no crash)
+- [ ] Send negative time value (e.g., -5.0)
+  - [ ] Handled gracefully (no crash)
+- [ ] Rapidly send 100+ OSC messages per second
+  - [ ] All messages processed
+  - [ ] No slowdown or memory leaks
+- [ ] Change OSC port while receiving messages
+  - [ ] Old listener stops
+  - [ ] New listener starts on new port
+  - [ ] Messages resume on new port
+
+### Performance & Stability (DAW Sync)
+
+- [ ] Long session (30+ minutes) with continuous OSC sync
+  - [ ] No memory leaks
+  - [ ] Sync remains accurate
+- [ ] Rapid song changes (10+ in quick succession)
+  - [ ] All songs load correctly
+  - [ ] No crashes or hangs
+- [ ] Scene transitions with DAW sync active
+  - [ ] ExternalSyncManager persists (DontDestroyOnLoad)
+  - [ ] OSC listener continues receiving
+
+---
+
+## 8. Console Log Verification (DAW Sync)
+
+### Expected Log Messages (Success Cases)
+- `[ExternalSyncManager] OSC receiver started on port 39043`
+- `[ExternalSyncManager] OSC: /playback/time [123.456]`
+- `[SongMappingManager] Loaded X song mappings from [path]`
+- `[SongMappingManager] DAW track changed to: [TrackName]`
+- `[SongMappingManager] Loading chart: [path]`
+
+### Expected Warnings (Error Cases)
+- `[SongMappingManager] Mapping file not found: [path]`
+- `[SongMappingManager] No mapping found for track: [TrackName]`
+- `[SongMappingManager] Chart file not found: [path]`
+- `[SongMappingManager] Mapping disabled for track: [TrackName]`
+- `[ExternalSyncManager] Failed to start OSC receiver: [error]`
 
 ---
 

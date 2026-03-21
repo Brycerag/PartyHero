@@ -58,25 +58,42 @@ public abstract class MovementController : MonoBehaviour {
             float timeBeforeMovement = ChartEditor.WorldYPositionToTime(pos.y - positionOffset);
             float timeAfterMovement = timeBeforeMovement + deltaTime * Globals.gameSettings.gameSpeed;
 
-            // Make sure we're staying in sync with the audio
+            // Make sure we're staying in sync with the audio (or external DAW)
             {
-                SongAudioManager songAudioManager = editor.currentSongAudio;
+                float audioTimePosition = 0f;
+                bool hasAudioSource = false;
 
-                AudioStream stream = null;
-
-                for (int i = 0; i < EnumX<Song.AudioInstrument>.Count; ++i)
+                // Check if using external DAW sync first
+                if (ExternalSyncManager.Instance != null && ExternalSyncManager.Instance.IsSyncActive())
                 {
-                    Song.AudioInstrument audio = (Song.AudioInstrument)i;
-                    if (AudioManager.StreamIsValid(songAudioManager.GetAudioStream(audio)))
+                    audioTimePosition = ExternalSyncManager.Instance.currentTime;
+                    hasAudioSource = true;
+                }
+                else
+                {
+                    // Fall back to internal audio stream sync
+                    SongAudioManager songAudioManager = editor.currentSongAudio;
+                    AudioStream stream = null;
+
+                    for (int i = 0; i < EnumX<Song.AudioInstrument>.Count; ++i)
                     {
-                        stream = songAudioManager.GetAudioStream(audio);
-                        break;
+                        Song.AudioInstrument audio = (Song.AudioInstrument)i;
+                        if (AudioManager.StreamIsValid(songAudioManager.GetAudioStream(audio)))
+                        {
+                            stream = songAudioManager.GetAudioStream(audio);
+                            break;
+                        }
+                    }
+
+                    if (AudioManager.StreamIsValid(stream) && stream.IsPlaying())
+                    {
+                        audioTimePosition = stream.CurrentPositionSeconds - editor.services.totalSongAudioOffset;
+                        hasAudioSource = true;
                     }
                 }
 
-                if (AudioManager.StreamIsValid(stream) && stream.IsPlaying())
+                if (hasAudioSource)
                 {
-                    float audioTimePosition = stream.CurrentPositionSeconds - editor.services.totalSongAudioOffset;
                     float desyncAmount = audioTimePosition - timeAfterMovement;
 
                     if (Mathf.Abs(desyncAmount) > DESYNCLENIENCE * Globals.gameSettings.gameSpeed)
