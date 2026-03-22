@@ -6,10 +6,14 @@ public class GameplayEvents
 {
     public MoonscraperEngine.Event explicitMissEvent { get; private set; }
     public MoonscraperEngine.Event<GameplayStateSystem.GameState> gameplayUpdateEvent { get; private set; }
+    public MoonscraperEngine.Event starpowerActivateEvent { get; private set; }
+    public MoonscraperEngine.Event starpowerDeactivateEvent { get; private set; }
 
     public GameplayEvents()
     {
         explicitMissEvent = new MoonscraperEngine.Event();
         gameplayUpdateEvent = new MoonscraperEngine.Event<GameplayStateSystem.GameState>();
+        starpowerActivateEvent = new MoonscraperEngine.Event();
+        starpowerDeactivateEvent = new MoonscraperEngine.Event();
     }
 }

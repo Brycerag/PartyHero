@@ -13,6 +13,9 @@ public class GameplayStateSystem : SystemManagerState.System
     HitWindowFeeder hitWindowFeeder = new HitWindowFeeder();
     float playFromTime;
 
+    // Star power state tracking
+    bool isInStarpowerZone = false;
+
     delegate void GameplayUpdateFn(float time);
     GameplayUpdateFn gameplayUpdateFn = null;
     BaseGameplayRulestate currentRulestate;
@@ -82,10 +85,64 @@ public class GameplayStateSystem : SystemManagerState.System
         float currentTime = ChartEditor.Instance.currentVisibleTime;
         gameplayUpdateFn?.Invoke(currentTime);
 
+        // Check for star power zone entry/exit
+        UpdateStarpowerState(currentTime);
+
         GameState gamestate = new GameState();
         gamestate.stats = currentRulestate.stats;
 
         ChartEditor.Instance.gameplayEvents.gameplayUpdateEvent.Fire(gamestate);
+    }
+
+    void UpdateStarpowerState(float currentTime)
+    {
+        ChartEditor editor = ChartEditor.Instance;
+        Chart currentChart = editor.currentChart;
+
+        if (currentChart == null || currentChart.starPower == null || currentChart.starPower.Count == 0)
+        {
+            // No star power in chart - ensure we're marked as not in zone
+            if (isInStarpowerZone)
+            {
+                isInStarpowerZone = false;
+                editor.gameplayEvents.starpowerDeactivateEvent.Fire();
+            }
+            return;
+        }
+
+        // Convert current time to tick position
+        uint currentTick = editor.currentSong.TimeToTick(currentTime, editor.currentSong.resolution);
+
+        // Find closest star power zone at or before current position
+        int index = SongObjectHelper.FindClosestPositionRoundedDown(currentTick, currentChart.starPower);
+        
+        if (index >= 0 && index < currentChart.starPower.Count)
+        {
+            Starpower sp = currentChart.starPower[index];
+            
+            // Check if current position is within this star power zone
+            bool nowInZone = (sp.tick <= currentTick && (sp.tick + sp.length) > currentTick);
+
+            // Detect state change
+            if (nowInZone && !isInStarpowerZone)
+            {
+                // Entered star power zone
+                isInStarpowerZone = true;
+                editor.gameplayEvents.starpowerActivateEvent.Fire();
+            }
+            else if (!nowInZone && isInStarpowerZone)
+            {
+                // Exited star power zone
+                isInStarpowerZone = false;
+                editor.gameplayEvents.starpowerDeactivateEvent.Fire();
+            }
+        }
+        else if (isInStarpowerZone)
+        {
+            // No valid star power found but we were in zone - must have exited
+            isInStarpowerZone = false;
+            editor.gameplayEvents.starpowerDeactivateEvent.Fire();
+        }
     }
 
     public override void SystemExit()

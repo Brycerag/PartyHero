@@ -193,6 +193,112 @@
 
 ---
 
+## 5.5. Star Power Zone Detection
+
+### Prerequisites
+- [ ] Chart loaded with star power phrases/zones marked
+- [ ] MIDI output enabled (local device or TCP)
+- [ ] Star power CC numbers configured in MidiOutputManager Inspector
+  - [ ] starpowerActivateCCNumber (default: 21)
+  - [ ] starpowerActivateCCValue (default: 127)
+  - [ ] starpowerDeactivateCCNumber (default: 21)
+  - [ ] starpowerDeactivateCCValue (default: 0)
+- [ ] sendStarpowerViaOsc enabled if using DAW sync
+
+### Basic Star Power Detection (Bot/Playback Mode)
+- [ ] Start playback (Play mode with bot)
+- [ ] Playback enters star power zone
+  - [ ] Console log: "Star power ACTIVATED - CC21=127"
+  - [ ] MIDI CC21 value 127 sent to device/TCP
+  - [ ] If OSC enabled: `/starpower/active 1` sent to Ableton
+- [ ] Playback exits star power zone
+  - [ ] Console log: "Star power DEACTIVATED - CC21=0"
+  - [ ] MIDI CC21 value 0 sent to device/TCP
+  - [ ] If OSC enabled: `/starpower/active 0` sent to Ableton
+- [ ] Multiple star power zones in song
+  - [ ] Each zone triggers activate/deactivate pair
+  - [ ] No missed activations or deactivations
+
+### Star Power + Ableton Integration
+- [ ] External DAW sync enabled and connected
+- [ ] sendStarpowerViaOsc: true
+- [ ] In Ableton: Map automation or Max for Live device to receive `/starpower/active`
+- [ ] Play song with star power zones
+- [ ] In Ableton:
+  - [ ] Automation track shows star power ON (value 1) during zones
+  - [ ] Automation track shows star power OFF (value 0) outside zones
+  - [ ] Can trigger light effects, volume changes, FX automation based on star power state
+
+### Star Power + MIDI Mixer Control
+- [ ] Connect MIDI output to mixer (e.g., X32, Mackie, etc.)
+- [ ] Configure mixer to respond to CC21 (or custom CC)
+- [ ] Map CC21 to:
+  - Effect send level (e.g., reverb/delay during star power)
+  - Light trigger (DMX via MIDI-to-DMX converter)
+  - Volume automation on a channel
+- [ ] Play song with star power zones
+- [ ] Mixer responds:
+  - [ ] Effect turns ON when entering zone (CC21=127)
+  - [ ] Effect turns OFF when exiting zone (CC21=0)
+  - [ ] Smooth transitions if mixer supports interpolation
+
+### Custom CC Configuration
+- [ ] Change starpowerActivateCCNumber to 50
+- [ ] Change starpowerDeactivateCCNumber to 51
+- [ ] Play song with star power zones
+  - [ ] CC50 value 127 sent on activate
+  - [ ] CC51 value 0 sent on deactivate
+- [ ] Change starpowerActivateCCValue to 64, starpowerDeactivateCCValue to 32
+  - [ ] CC50 value 64 sent on activate
+  - [ ] CC51 value 32 sent on deactivate
+- [ ] Use same CC number for both (default behavior)
+  - [ ] starpowerActivateCCNumber = starpowerDeactivateCCNumber = 21
+  - [ ] Activate sends CC21=127
+  - [ ] Deactivate sends CC21=0
+  - [ ] Behaves like on/off switch
+
+### Edge Cases
+- [ ] Song with no star power zones
+  - [ ] No activate/deactivate messages sent
+  - [ ] No errors or warnings
+- [ ] Seek to middle of star power zone
+  - [ ] Activate message fired immediately upon entering zone
+- [ ] Seek out of star power zone while active
+  - [ ] Deactivate message fired immediately
+- [ ] Rapid seeking in/out of zones
+  - [ ] Each transition fires appropriate message
+  - [ ] No duplicate messages
+- [ ] Multiple star power zones back-to-back (no gap)
+  - [ ] Deactivate at end of first zone
+  - [ ] Activate at start of second zone
+  - [ ] Clear state transitions
+
+### Star Power + Instrument Tracking
+- [ ] Guitar instrument with star power zones
+- [ ] Instrument tracking enabled
+- [ ] Play song, enter star power zone
+  - [ ] Star power activate sent (CC21=127)
+  - [ ] Guitar channel unmuted (Mackie CC)
+- [ ] Switch to Bass mid-playback
+  - [ ] Guitar muted (Mackie CC)
+  - [ ] Bass unmuted (Mackie CC)
+  - [ ] Star power state persists (if still in zone)
+- [ ] Exit star power zone while on Bass
+  - [ ] Star power deactivate sent (CC21=0)
+
+### Performance & Stability
+- [ ] Long song (5+ minutes) with 10+ star power zones
+  - [ ] All activations detected
+  - [ ] All deactivations detected
+  - [ ] No lag or frame drops
+- [ ] Playback speed changes (tempo multiplier)
+  - [ ] Star power detection still accurate
+- [ ] Loop playback through star power zone
+  - [ ] Each loop iteration fires activate/deactivate
+  - [ ] State resets correctly on loop
+
+---
+
 ## 6. Error Handling & Edge Cases
 
 ### Invalid Settings

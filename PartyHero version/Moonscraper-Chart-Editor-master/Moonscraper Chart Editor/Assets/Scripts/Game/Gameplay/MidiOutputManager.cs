@@ -71,6 +71,23 @@ public class MidiOutputManager : MonoBehaviour
     [Range(0, 127)]
     public int missCCValue = 0;
 
+    [Tooltip("CC number used when entering a star power zone (ACTIVATE).")]
+    public int starpowerActivateCCNumber = 21;
+
+    [Tooltip("CC value sent when star power ACTIVATES (e.g. 127 = on).")]
+    [Range(0, 127)]
+    public int starpowerActivateCCValue = 127;
+
+    [Tooltip("CC number used when exiting a star power zone (DEACTIVATE).")]
+    public int starpowerDeactivateCCNumber = 21;
+
+    [Tooltip("CC value sent when star power DEACTIVATES (e.g. 0 = off).")]
+    [Range(0, 127)]
+    public int starpowerDeactivateCCValue = 0;
+
+    [Tooltip("When true, star power messages will also be sent via OSC to external DAW.")]
+    public bool sendStarpowerViaOsc = true;
+
     [Tooltip("When true, MIDI messages will not be sent (useful for testing without hardware).")]
     public bool muteOutput = false;
 
@@ -127,6 +144,16 @@ public class MidiOutputManager : MonoBehaviour
         {
             networkStatus = "Network mode selected. Press Start to connect.";
             networkConnectionState = NetworkConnectionState.Stopped;
+        }
+    }
+
+    void Start()
+    {
+        // Register to gameplay events
+        if (ChartEditor.Instance != null && ChartEditor.Instance.gameplayEvents != null)
+        {
+            ChartEditor.Instance.gameplayEvents.starpowerActivateEvent.Register(OnStarpowerActivate);
+            ChartEditor.Instance.gameplayEvents.starpowerDeactivateEvent.Register(OnStarpowerDeactivate);
         }
     }
 
@@ -552,6 +579,20 @@ public class MidiOutputManager : MonoBehaviour
         return instrumentChannelMap;
     }
 
+    /// <summary>Get the currently active instrument in the editor/gameplay.</summary>
+    Song.Instrument GetCurrentInstrument()
+    {
+        try
+        {
+            return MenuBar.currentInstrument;
+        }
+        catch
+        {
+            // Fallback if MenuBar is not available
+            return lastTrackedInstrument;
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Gameplay event hooks — called by BaseGameplayRulestate
     // -------------------------------------------------------------------------
@@ -566,6 +607,52 @@ public class MidiOutputManager : MonoBehaviour
     public void OnNoteMiss()
     {
         SendControlChange(missCCNumber, missCCValue);
+    }
+
+    /// <summary>Send configured messages when star power zone is activated.</summary>
+    public void OnStarpowerActivate()
+    {
+        // Send MIDI CC message
+        SendControlChange(starpowerActivateCCNumber, starpowerActivateCCValue);
+
+        // Send OSC message to DAW if enabled
+        if (sendStarpowerViaOsc && ExternalSyncManager.Instance != null)
+        {
+            // Get current instrument
+            Song.Instrument currentInstrument = GetCurrentInstrument();
+            string instrumentName = currentInstrument.ToString().ToLower();
+
+            // Send global message
+            ExternalSyncManager.Instance.SendOscMessage("/starpower/active", 1);
+            
+            // Send instrument-specific message (allows per-instrument routing in Ableton)
+            ExternalSyncManager.Instance.SendOscMessage($"/starpower/{instrumentName}/active", 1);
+        }
+
+        Debug.Log($"[MidiOutputManager] Star power ACTIVATED - CC{starpowerActivateCCNumber}={starpowerActivateCCValue}");
+    }
+
+    /// <summary>Send configured messages when star power zone is deactivated.</summary>
+    public void OnStarpowerDeactivate()
+    {
+        // Send MIDI CC message
+        SendControlChange(starpowerDeactivateCCNumber, starpowerDeactivateCCValue);
+
+        // Send OSC message to DAW if enabled
+        if (sendStarpowerViaOsc && ExternalSyncManager.Instance != null)
+        {
+            // Get current instrument
+            Song.Instrument currentInstrument = GetCurrentInstrument();
+            string instrumentName = currentInstrument.ToString().ToLower();
+
+            // Send global message
+            ExternalSyncManager.Instance.SendOscMessage("/starpower/active", 0);
+            
+            // Send instrument-specific message (allows per-instrument routing in Ableton)
+            ExternalSyncManager.Instance.SendOscMessage($"/starpower/{instrumentName}/active", 0);
+        }
+
+        Debug.Log($"[MidiOutputManager] Star power DEACTIVATED - CC{starpowerDeactivateCCNumber}={starpowerDeactivateCCValue}");
     }
 
     // -------------------------------------------------------------------------
