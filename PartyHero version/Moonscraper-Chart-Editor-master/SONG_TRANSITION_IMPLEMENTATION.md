@@ -1,7 +1,8 @@
 # Song Transition Implementation Design
 
-**Status**: Ready for Implementation  
+**Status**: Logic Complete ✅ | Unity UI Pending ⚠️  
 **Based On**: [SONG_TRANSITION_UX_SCENARIOS.md](SONG_TRANSITION_UX_SCENARIOS.md) - Finalized Decisions  
+**Unity UI TODO**: [SHOW_FLOW_UI_TODO.md](SHOW_FLOW_UI_TODO.md) - Complete UI component checklist  
 **Last Updated**: 2026-03-23
 
 ---

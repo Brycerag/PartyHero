@@ -35,6 +35,23 @@ A [`PKGBUILD` file for Arch Linux](aur/PKGBUILD) is included in the repository.
 
 Other distribution packagers can use the `PKGBUILD` file for reference.
 
+## PartyHero Live Performance Documentation
+
+This fork includes PartyHero-specific features for live band performances with audience participation. See the following documentation:
+
+**Show Flow System:**
+- [SHOW_FLOW_UI_TODO.md](SHOW_FLOW_UI_TODO.md) - Unity UI implementation checklist (12 phases, 90+ tasks)
+- [SONG_TRANSITION_UX_SCENARIOS.md](SONG_TRANSITION_UX_SCENARIOS.md) - UX design decisions and flow diagrams
+- [SONG_TRANSITION_IMPLEMENTATION.md](SONG_TRANSITION_IMPLEMENTATION.md) - Technical implementation details
+- [MESSAGE_REFERENCE.md](MESSAGE_REFERENCE.md) - OSC/MIDI message reference for triggers and state broadcasting
+- [MIDI_TESTING_CHECKLIST.md](MIDI_TESTING_CHECKLIST.md) - Comprehensive testing procedures (Section 8: Show Flow)
+
+**External Sync:**
+- [DAW_SYNC_SETUP.md](DAW_SYNC_SETUP.md) - AbleSet/Ableton Live integration guide
+- [CONTINUOUS_TIMELINE_QUICKSTART.md](CONTINUOUS_TIMELINE_QUICKSTART.md) - Setlist timeline configuration
+- [SETLIST_VERIFICATION_QUICKSTART.md](SETLIST_VERIFICATION_QUICKSTART.md) - Song mapping verification tools
+- [STARPOWER_MIDI_OSC_GUIDE.md](STARPOWER_MIDI_OSC_GUIDE.md) - Star power automation for lighting/effects
+
 ## Who do I talk to?
 * Alexander "FireFox" Ong
 * Discord (Easiest link to contact me through)- https://discord.gg/bjsKTwd
