@@ -77,6 +77,11 @@ namespace MoonscraperChartEditor.Song
         private Dictionary<string, SongMapping> mappingDict = new Dictionary<string, SongMapping>(StringComparer.OrdinalIgnoreCase);
         private SongMappingList mappingData;
 
+        // Show flow integration
+        [Header("Show Flow")]
+        [Tooltip("Current song index in setlist (-1 if not in sequential mode)")]
+        public int currentSongIndex = -1;
+
         void Awake()
         {
             if (Instance != null && Instance != this)
@@ -359,6 +364,96 @@ namespace MoonscraperChartEditor.Song
         public int GetMappingCount()
         {
             return mappingData?.mappings?.Count ?? 0;
+        }
+
+        // ===== SHOW FLOW INTEGRATION METHODS =====
+
+        /// <summary>
+        /// Get the name of the next song in the setlist (sequential mode)
+        /// Returns null if no next song or not in sequential mode
+        /// </summary>
+        public string GetNextSongName()
+        {
+            SongMapping nextMapping = GetNextSongMapping();
+            return nextMapping?.dawTrackName;
+        }
+
+        /// <summary>
+        /// Get the next song mapping in the setlist
+        /// Returns null if no next song
+        /// </summary>
+        public SongMapping GetNextSongMapping()
+        {
+            if (mappingData?.mappings == null || mappingData.mappings.Count == 0)
+                return null;
+
+            // If not in sequential mode, start from beginning
+            if (currentSongIndex < 0)
+            {
+                // Find first enabled song
+                for (int i = 0; i < mappingData.mappings.Count; i++)
+                {
+                    if (mappingData.mappings[i].enabled)
+                        return mappingData.mappings[i];
+                }
+                return null;
+            }
+
+            // Find next enabled song after current index
+            for (int i = currentSongIndex + 1; i < mappingData.mappings.Count; i++)
+            {
+                if (mappingData.mappings[i].enabled)
+                    return mappingData.mappings[i];
+            }
+
+            // No more songs
+            return null;
+        }
+
+        /// <summary>
+        /// Load the next song in the setlist (for show flow transitions)
+        /// </summary>
+        public bool LoadNextSong()
+        {
+            SongMapping nextMapping = GetNextSongMapping();
+            if (nextMapping == null)
+            {
+                Debug.LogWarning("[SongMappingManager] No next song available in setlist");
+                return false;
+            }
+
+            // Update current index
+            currentSongIndex = mappingData.mappings.IndexOf(nextMapping);
+
+            // Load the song
+            LoadSongForTrack(nextMapping.dawTrackName);
+            return true;
+        }
+
+        /// <summary>
+        /// Set current song by track name (updates currentSongIndex for sequential flow)
+        /// </summary>
+        public void SetCurrentSongByTrackName(string trackName)
+        {
+            if (mappingDict.TryGetValue(trackName, out SongMapping mapping))
+            {
+                currentSongIndex = mappingData.mappings.IndexOf(mapping);
+                Debug.Log($"[SongMappingManager] Current song index set to {currentSongIndex} ({trackName})");
+            }
+            else
+            {
+                currentSongIndex = -1;
+                Debug.LogWarning($"[SongMappingManager] Track not found: {trackName}");
+            }
+        }
+
+        /// <summary>
+        /// Reset to beginning of setlist
+        /// </summary>
+        public void ResetSetlist()
+        {
+            currentSongIndex = -1;
+            Debug.Log("[SongMappingManager] Setlist reset to beginning");
         }
     }
 }

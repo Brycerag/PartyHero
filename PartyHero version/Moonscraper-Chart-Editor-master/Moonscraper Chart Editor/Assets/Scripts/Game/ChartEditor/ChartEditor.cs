@@ -83,6 +83,11 @@ public class ChartEditor : UnitySingleton<ChartEditor>
     {
         Editor,
         Playing,
+        Results,         // Show stats after song ends
+        WaitingForSwap,  // Waiting for player swap
+        WaitingForBand,  // Waiting for band ready signal
+        SetEnd,          // Between-set break screen
+        ShowEnd,         // End of show screen
         Menu,
         Loading,
     }
@@ -480,6 +485,11 @@ public class ChartEditor : UnitySingleton<ChartEditor>
         {
             case State.Editor: newState = new EditorState(); break;
             case State.Playing: Debug.LogError("Attempting to change state to a default Playing State. This is not allowed."); return null; // call from Play function in this editor instead
+            case State.Results: Debug.LogError("Attempting to change state to Results without providing ResultsState instance."); return null;
+            case State.WaitingForSwap: Debug.LogError("Attempting to change state to WaitingForSwap without providing WaitingForSwapState instance."); return null;
+            case State.WaitingForBand: Debug.LogError("Attempting to change state to WaitingForBand without providing WaitingForBandState instance."); return null;
+            case State.SetEnd: Debug.LogError("Attempting to change state to SetEnd without providing SetEndState instance."); return null;
+            case State.ShowEnd: Debug.LogError("Attempting to change state to ShowEnd without providing ShowEndState instance."); return null;
             case State.Menu: newState = menuState; break;
             case State.Loading: newState = loadingState; break;
             default: break;

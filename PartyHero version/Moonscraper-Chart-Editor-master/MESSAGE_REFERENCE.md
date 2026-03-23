@@ -134,6 +134,151 @@ Start Next Song
 
 ---
 
+## Show Flow Control Messages
+
+The show flow system manages song transitions, player swaps, demo mode, and show state coordination. These messages are used for live performances with multiple players, band coordination, and set management.
+
+### Received (Incoming) - Show Flow Triggers
+
+**OSC Messages (Port 39043):**
+
+| Message | Type | Description |
+|---------|------|-------------|
+| `/player/swap` | Trigger | Indicates next song will have a different player (player swap mode) |
+| `/player/ready` | Trigger | Current player signals they are ready to proceed |
+| `/band/ready` | Trigger | Band signals they are ready to start next song |
+| `/song/complete` | Trigger | Force song end and show results screen |
+| `/set/end` | Trigger | Display set end screen (between-set break) |
+| `/show/end` | Trigger | Display show end screen (end of entire show) |
+| `/game/mode/demo` | Trigger | Enable demo/no-player mode for next song (bot auto-play) |
+
+**MIDI Note Triggers (Note On):**
+
+| Note Number | Default | Event Name | Description |
+|-------------|---------|------------|-------------|
+| Configurable | 124 | Player Swap | Trigger player swap mode |
+| Configurable | 125 | Player Ready | Signal player is ready |
+| Configurable | 126 | Band Ready | Signal band is ready to start |
+| Configurable | 127 | Song Complete | Force song end / results screen |
+| Configurable | 122 | Set End | Display set end screen |
+| Configurable | 121 | Show End | Display show end screen |
+| Configurable | 120 | Demo Mode | Enable demo mode (no player) |
+
+### Sent (Outgoing) - Show Flow State Broadcasting
+
+**OSC Messages (Port 39045):**
+
+| Message | Values | Description |
+|---------|--------|-------------|
+| `/game/state` | `string` | Current game state: "playing", "results", "waiting_swap", "waiting_band", "set_end", "show_end", "demo_mode" |
+| `/player/state` | `string` | Current player state: "playing", "swapping", "ready", "ready_forced", "no_player" |
+| `/band/state` | `string` | Band readiness state: "ready", "waiting" |
+| `/song/stats` | `int, int, int` | Post-song statistics: notes hit, total notes, best streak |
+
+### Show Flow State Machine
+
+```
+Song Playing
+    ↓
+Song Ends (auto-detect / trigger)
+    ↓
+Results Screen
+    - Display: Stats, optional "Next: [Song Name]"
+    - Broadcast: /song/stats [hit] [total] [streak]
+    ↓
+Player Mode Check:
+    ├─ CONTINUING (same player):
+    │       ↓
+    │   Waiting For Band
+    │       - Broadcast: /game/state "waiting_band"
+    │       - Wait for: /band/ready trigger
+    │       ↓
+    │   Start Next Song
+    │
+    ├─ SWAPPING (new player):
+    │       ↓
+    │   Waiting For Swap
+    │       - Display: "PLAYER SWAP TIME"
+    │       - Broadcast: /player/state "swapping"
+    │       - Wait for: /player/ready trigger
+    │       ↓
+    │   [Check requireBandReady setting]
+    │       ├─ TRUE → Waiting For Band
+    │       └─ FALSE → Start Next Song
+    │
+    └─ NO PLAYER (demo mode):
+            ↓
+        Start Next Song (bot-enabled)
+            - Broadcast: /game/state "demo_mode"
+            - Game auto-hits all notes
+```
+
+### Set End / Show End Flow
+
+```
+Playing or Results
+    ↓
+Trigger: /set/end OR MIDI Note 122
+    ↓
+Set End Screen
+    - Display: "SET BREAK" message
+    - Broadcast: /game/state "set_end"
+    - Wait for manual resume or show end
+    ↓
+Options:
+    ├─ Resume (R key / external trigger):
+    │       ↓
+    │   Load first song of next set
+    │   Continue show flow
+    │
+    └─ End Show (E key / /show/end):
+            ↓
+        Show End Screen
+            - Display: "SHOW COMPLETE" message
+            - Broadcast: /game/state "show_end"
+            - Manual exit to editor (ESC key)
+```
+
+### Show Flow Configuration
+
+**ShowFlowManager Inspector Settings:**
+
+- `Show Flow Enabled` - Master toggle for entire show flow system
+- `Show Next Song Name` - Global toggle for "Next: [Song]" display on results
+- `Require Band Ready` - Whether to wait for band ready signal before starting songs
+- `Debug Show Flow` - Log all state transitions and triggers to console
+
+**MIDI Trigger Note Numbers (Configurable):**
+
+- `playerSwapNoteNumber` (default: 124)
+- `playerReadyNoteNumber` (default: 125)
+- `bandReadyNoteNumber` (default: 126)
+- `songCompleteNoteNumber` (default: 127)
+- `setEndNoteNumber` (default: 122)
+- `showEndNoteNumber` (default: 121)
+- `noPlayerModeNoteNumber` (default: 120)
+
+### Development Helper Keys
+
+**Results Screen:**
+- `SPACE` - Continue to next state
+
+**Waiting For Swap:**
+- `R` - Simulate player ready trigger
+
+**Waiting For Band:**
+- `P` - Force player ready (band override)
+- `B` - Trigger band ready
+
+**Set End Screen:**
+- `R` - Resume show (load next set)
+- `E` - End show (to show end screen)
+
+**Show End Screen:**
+- `ESC` - Exit to editor
+
+---
+
 ## Configuration Notes
 
 ### MIDI Output Modes

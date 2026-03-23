@@ -912,6 +912,374 @@
   - [ ] Status text: red "✗ X songs failed verification"
   - [ ] Progress text: "Passed: Y | Failed: X"
   - [ ] Console warning: "X songs failed verification. Check mapping JSON and Ableton timeline positions."
+
+---
+
+## 8. Song Transitions & Show Flow System
+
+**Implementation Status:** *Phase 1 Complete - Core functionality implemented*
+
+### Prerequisites
+- [ ] ShowFlowManager GameObject exists in scene with component attached
+- [ ] Show Flow Enabled toggle is ON in ShowFlowManager Inspector
+- [ ] Debug Show Flow toggle is ON for console logging
+- [ ] ExternalSyncManager configured and functioning (for OSC triggers)
+- [ ] At least 2 songs loaded in setlist/song mapping
+
+### Phase 1: Automatic Song End Detection
+
+**Test Natural Song End:**
+
+- [ ] Load a short test chart (30-60 seconds)
+- [ ] Verify song has valid length:
+  - [ ] Check song.ini for `song_length` OR
+  - [ ] Verify audio file is present
+- [ ] Start gameplay (Play button or external DAW trigger)
+- [ ] Let song play to completion
+  - [ ] Console log: `[GameplayStateSystem] Song end detected at X.XXs (length: Y.YYs)`
+  - [ ] Console log: `[ShowFlowManager] Song complete triggered`
+  - [ ] Console log: `[ShowFlowManager] Transitioned to Results...`
+  - [ ] Gameplay **stops** automatically
+  - [ ] Results screen appears (Phase 1: console output, Phase 2: UI)
+
+**Test Song End with Manual Length:**
+
+- [ ] Edit song.ini: add `song_length = 45000` (45 seconds)
+- [ ] Reload song
+- [ ] Start gameplay
+- [ ] Verify song ends at exactly 45 seconds
+  - [ ] Console shows: `(length: 45.00s)`
+- [ ] Manual length takes priority over audio length
+
+**Test Song End with Audio Length Only:**
+
+- [ ] Edit song.ini: remove `song_length` field
+- [ ] Ensure audio file (song.ogg/mp3) is present
+- [ ] Reload song
+- [ ] Start gameplay
+- [ ] Verify song ends at audio file length
+  - [ ] Console shows audio file length
+
+**Test Chart-Only Length Fallback:**
+
+- [ ] Create chart with no audio file and no manual length
+- [ ] Load chart
+- [ ] Start gameplay
+- [ ] Verify song ends 2 seconds after last note
+  - [ ] Console shows: chart end time + 2.0s buffer
+  - [ ] This is a fallback, not ideal for live shows
+
+**Test Multiple Songs in Sequence:**
+
+- [ ] Play song 1 to completion → results appear
+- [ ] (Phase 2+ only) Click Continue → wait for band ready → next song starts
+- [ ] Play song 2 to completion → results appear
+- [ ] Verify stats reset between songs (streak back to 0, etc.)
+- [ ] No accumulated errors or memory leaks
+
+### Phase 1: Results Screen Display (Console Mode)
+
+**Test Stats Display:**
+
+- [ ] Complete a song with mixed hits/misses
+- [ ] When results appear, verify console output:
+  - [ ] `============================`
+  - [ ] `SONG COMPLETE`
+  - [ ] `Hit: XX.X%` (calculated correctly)
+  - [ ] `Best Streak: XXX`
+  - [ ] `Notes Hit: XXX / XXX` (correct values)
+  - [ ] `============================`
+  - [ ] `Press SPACE to continue...`
+- [ ] Verify calculations:
+  - [ ] Hit% = (notesHit / totalNotes) * 100
+  - [ ] Values match what was displayed during gameplay
+
+**Test Perfect Run Stats:**
+
+- [ ] Enable Bot mode (auto-play)
+- [ ] Let bot complete song
+- [ ] Verify results show:
+  - [ ] Hit: 100.0%
+  - [ ] Best Streak equals total notes
+  - [ ] Notes Hit matches totalNotes
+
+**Test Zero Hit Stats:**
+
+- [ ] Start song, don't hit any notes
+- [ ] Let song complete
+- [ ] Verify results show:
+  - [ ] Hit: 0.0%
+  - [ ] Best Streak: 0
+  - [ ] Notes Hit: 0 / XXX
+
+**Test Continue Input:**
+
+- [ ] Complete song, results appear
+- [ ] Press SPACE key
+  - [ ] Console log: `[ResultsUISystem] Continue pressed`
+  - [ ] (Phase 2+) Transitions to next state
+  - [ ] (Phase 1) Returns to editor (stub behavior)
+
+### Phase 1: Show Flow Manager State Tracking
+
+**Test Player Mode: Continuing (Default):**
+
+- [ ] Complete song
+- [ ] Verify console output shows player mode is "Continuing"
+- [ ] Press SPACE to continue
+  - [ ] (Phase 1) Returns to editor
+  - [ ] (Phase 2+) Goes to "Waiting for Band" state
+
+**Test Show Flow Toggle:**
+
+- [ ] In ShowFlowManager Inspector, disable "Show Flow Enabled"
+- [ ] Complete song
+  - [ ] Song ends normally (no results screen)
+  - [ ] Returns directly to editor (old behavior)
+- [ ] Re-enable "Show Flow Enabled"
+- [ ] Complete song
+  - [ ] Results screen appears (new behavior)
+
+**Test Debug Logging:**
+
+- [ ] Enable "Debug Show Flow" in Inspector
+- [ ] Complete song
+  - [ ] See detailed console logs for each state transition
+  - [ ] See stats in logs
+- [ ] Disable "Debug Show Flow"
+  - [ ] Logs are suppressed (cleaner console)
+
+### OSC State Broadcasting (Phase 1)
+
+**Test /game/state Messages:**
+
+- [ ] Setup OSC monitor (e.g., OSCMonitor, Protocol)
+- [ ] Listen on port 39045 (OSC output port)
+- [ ] Start gameplay
+  - [ ] Receive: `/game/state "playing"`
+- [ ] Let song complete
+  - [ ] Receive: `/game/state "results"`
+- [ ] Press continue (Phase 2+)
+  - [ ] Receive: `/game/state "waiting_band"` (when implemented)
+
+**Test /song/stats Messages:**
+
+- [ ] OSC monitor active
+- [ ] Complete song with 150 hits, 200 total, 75 streak
+- [ ] Verify received message:
+  - [ ] `/song/stats 150 200 75`
+  - [ ] Arguments are integers
+  - [ ] Order: hits, total, streak
+
+### External Trigger: OSC Song Complete
+
+**Test /song/complete Message:**
+
+- [ ] Start gameplay
+- [ ] While song is playing, send OSC message:
+  - [ ] Address: `/song/complete`
+  - [ ] Port: 39043 (OSC input)
+- [ ] Verify:
+  - [ ] Song ends immediately
+  - [ ] Results screen appears
+  - [ ] Stats reflect current game state (notes hit up to trigger point)
+
+**Test /song/complete When Not Playing:**
+
+- [ ] Send `/song/complete` while in editor (not playing)
+- [ ] Verify:
+  - [ ] Console warning: "Song complete triggered but not in Playing state"
+  - [ ] No crash or state change
+  - [ ] Nothing happens (expected)
+
+### External Trigger: MIDI Song Complete
+
+**Test MIDI Note 127 (Song Complete):**
+
+- [ ] Send MIDI Note On, note number 127, any channel
+- [ ] While song is playing:
+  - [ ] Song ends immediately
+  - [ ] Results screen appears
+- [ ] When not playing:
+  - [ ] Console warning logged
+  - [ ] No effect (expected)
+
+**NOTE:** MIDI input system is not yet implemented in Phase 1.  
+This test will be enabled in Phase 6 (MIDI Input System).
+
+### Edge Cases & Error Handling
+
+**Test Song with No Length Information:**
+
+- [ ] Load chart with no audio, no manual length, no notes
+- [ ] Start gameplay
+- [ ] Verify:
+  - [ ] Console warning: "Could not determine song length"
+  - [ ] Song never auto-completes (or waits indefinitely)
+  - [ ] Must manually stop playback
+
+**Test Rapid Song End Triggers:**
+
+- [ ] Complete song naturally (auto-detect)
+- [ ] Immediately spam `/song/complete` OSC messages
+- [ ] Verify:
+  - [ ] Only one results screen appears
+  - [ ] Flag prevents multiple triggers
+  - [ ] No crashes or duplicate states
+
+**Test Show Flow with Missing ShowFlowManager:**
+
+- [ ] Delete ShowFlowManager GameObject from scene
+- [ ] Complete song
+- [ ] Verify:
+  - [ ] Song ends normally (fallback to default behavior)
+  - [ ] No crashes or null reference errors
+  - [ ] Returns to editor
+
+**Test Results State Exit:**
+
+- [ ] Complete song, results appear
+- [ ] Press Stop button (or Escape) to force exit
+- [ ] Verify:
+  - [ ] Results state exits cleanly
+  - [ ] Console log: `[ResultsState] Exited`
+  - [ ] Returns to editor without errors
+
+### Performance & Memory
+
+**Test Memory Leaks:**
+
+- [ ] Play 10+ songs to completion in sequence
+- [ ] Monitor memory usage in Unity Profiler
+- [ ] Verify:
+  - [ ] Memory doesn't continuously grow
+  - [ ] GameplayStateSystem.Instance is set/cleared properly
+  - [ ] No leaked stats objects
+
+**Test State Transition Speed:**
+
+- [ ] Complete song
+- [ ] Measure time from song end to results display
+- [ ] Should be instant (< 0.1 seconds)
+- [ ] No lag or freezing
+
+**Test Concurrent Systems:**
+
+- [ ] Complete song with:
+  - [ ] Star power zones active
+  - [ ] MIDI output active
+  - [ ] OSC sync active
+  - [ ] Multiple instrument tracks
+- [ ] Verify:
+  - [ ] Results screen appears correctly
+  - [ ] All systems continue functioning
+  - [ ] No interference or conflicts
+
+---
+
+## 9. MIDI Input System (Phase 6 - Not Yet Implemented)
+
+**Status:** *Planned for Phase 6*
+
+This section will be populated when MIDI input system is implemented.
+
+### Expected Features:
+- MIDI Note On listening during gameplay
+- Note number to trigger mapping:
+  - Note 120: No Player/Demo Mode
+  - Note 121: Show End
+  - Note 122: Set End
+  - Note 124: Player Swap
+  - Note 125: Player Ready
+  - Note 126: Band Ready
+  - Note 127: Song Complete
+- FootController (FCB1010) support
+- Thread-safe MIDI event queuing
+- Integration with ShowFlowManager
+
+### Testing Areas (Future):
+- MIDI device selection for input
+- Note On trigger detection
+- Velocity handling (if applicable)
+- Channel filtering
+- Multiple MIDI controllers simultaneously
+- MIDI input + MIDI output working together
+- Foot controller specific testing
+
+---
+
+## 10. External Testing Tools (Future Development)
+
+**Note:** User has requested consideration for external testing tools.
+
+### Potential Testing Tool Ideas:
+
+**1. OSC Testing Console**
+- GUI application to send/receive OSC messages
+- Pre-configured buttons for all show flow triggers
+- Monitor incoming OSC state broadcasts
+- Log all OSC traffic with timestamps
+- Save/load test scenarios
+
+**2. MIDI Control Simulator**
+- Virtual MIDI controller for testing without hardware
+- Buttons for all trigger notes (120-127)
+- Visual feedback when messages sent/received
+- Sequence recording and playback
+- Integration with OSC testing
+
+**3. Show Flow Simulator**
+- Automated test that runs through full show workflow:
+  - Load 5+ songs
+  - Play each to completion
+  - Trigger player swaps
+  - Trigger set/show end states
+  - Verify all transitions work
+  - Generate test report
+- Could be Unity Test Framework integration
+- Could be external Python/Node.js script
+
+**4. Sync Verification Tool**
+- Visual sync checker (strobe/metronome comparison)
+- Latency measurement between DAW and game
+- Drift detection over long durations
+- Results report with graphs
+
+**5. FCB1010 Configuration Manager**
+- Map FCB1010 footswitches to MIDI notes
+- Test each footswitch
+- Save/load configurations
+- Visual feedback for button presses
+
+### Implementation Priority: LOW
+These tools are enhancement ideas for future development.  
+Core show flow functionality takes priority.
+
+---
+
+## Testing Notes
+
+- Phase 1 (Core Results Flow) testing focuses on console output and state transitions
+- Phase 2+ testing will include UI elements (buttons, canvases, visual feedback)
+- MIDI input testing deferred to Phase 6
+- External testing tools are future enhancements (not blocking core features)
+
+## Test Completion Summary
+
+**Phase 1 Testing Status:**
+- [ ] Automatic song end detection - READY TO TEST
+- [ ] Results screen (console mode) - READY TO TEST
+- [ ] Show flow manager state tracking - READY TO TEST
+- [ ] OSC state broadcasting - READY TO TEST
+- [ ] External OSC triggers - READY TO TEST
+- [ ] External MIDI triggers - NOT YET IMPLEMENTED (Phase 6)
+- [ ] UI screens with buttons - NOT YET IMPLEMENTED (Phase 2)
+- [ ] Player swap flow - NOT YET IMPLEMENTED (Phase 3)
+- [ ] Demo mode - NOT YET IMPLEMENTED (Phase 4)
+- [ ] Set/Show end screens - NOT YET IMPLEMENTED (Phase 5)
+
+**Date Last Updated:** 2026-03-23  
+**Implemented By:** PartyHero Development Team
   - [ ] Results show failed songs:
     ```
     ✗ FAIL - Song Name

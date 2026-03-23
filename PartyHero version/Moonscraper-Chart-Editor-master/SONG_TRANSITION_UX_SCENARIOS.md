@@ -311,40 +311,322 @@ For each song in the setlist:
 
 ---
 
-## Questions to Answer Before Implementation
+## ✅ FINALIZED DECISIONS (Ready for Implementation)
 
-### Critical Flow Decisions:
-1. **Results Screen Trigger**: Auto-show or drummer-triggered?
-2. **Results Screen Duration**: Fixed timer, drummer-triggered, or hybrid?
-3. **Quick Transitions**: Can results be skipped? How?
-4. **Player Swaps**: Separate state or handled in results screen?
-
-### Control Decisions:
-5. **Who starts next song**: Drummer only, or Ableton /playback/playing, or either?
-6. **Emergency exit**: PlayPause immediate, or hold-to-confirm?
-7. **Restart song**: Needed? Who can trigger?
-
-### Display Decisions:
-8. **Results content**: Just stats, or also "next up" info?
-9. **Player swap UI**: What does swapping player see?
-10. **End of show**: Special screen or return to editor?
-
-### Technical Decisions:
-11. **Preloading priority**: Always preload, or skip if quick transition?
-12. **State transitions**: Can skip states, or must go through all?
-13. **OSC status messages**: What states to broadcast to Ableton/lights?
+### Core Philosophy
+> **"Song ends like game, next song starts like game"**  
+> Engineer out uncertainty between those points. Keep the arcade game experience intact.
 
 ---
 
-## Recommended Next Steps
+### Flow 1: Repeat Player (Default Behavior)
+**Context:** Same player continues to next song
 
-1. **Map your ideal show flow** - Walk through a typical setlist scenario
-2. **Identify must-haves vs nice-to-haves** - What's essential for v1?
-3. **Define control responsibilities** - Drummer vs system vs player
-4. **Sketch UI states** - What appears on screen in each state?
-5. **Review with band** - Do actual performers agree with flow?
+```
+Song Ends (auto-detect chart length)
+    ↓
+Results Screen (auto-show immediately)
+    - Hit %, Streak, Notes Hit/Total
+    - Optional "Next Up: [Song Name]" (global + per-song control)
+    - Next/Continue button
+    ↓
+Player Clicks Next/Continue
+    ↓
+"Waiting for Band" Screen
+    - Shows system is ready, waiting for band
+    - Player is marked ready
+    ↓
+Band Ready Trigger (single MIDI/OSC input)
+    ↓
+Next Song Starts
+```
 
-Once you've answered these questions, the implementation becomes straightforward - it's just translating your UX decisions into code.
+**Assumptions:**
+- Player continuing is the **default state**
+- Results auto-show immediately after song end
+- Player advances themselves by clicking Next/Continue
+- Band ready is a single external trigger (manual control)
+
+---
+
+### Flow 2: Player Swap
+**Context:** New person takes over the game
+
+```
+Song Ends
+    ↓
+Results Screen (previous player's stats)
+    ↓
+Player Swap Triggered (manual MIDI/OSC input or 3rd party scheduler)
+    ↓
+"Waiting for Player Swap" Screen
+    - Visible UI indicating swap time
+    - Previous player's results cleared
+    - New player gets ready at screen
+    ↓
+New Player Ready (system tracks player state)
+    ↓
+"Waiting for Band" Screen
+    ↓
+Band Ready Trigger
+    ↓
+Next Song Starts
+```
+
+**Key Points:**
+- Swap must be **manually triggered** each time (not pre-configured per song)
+- Separate "Waiting for Player Swap" UI state
+- Band has manual control to force player ready state (override)
+
+---
+
+### Flow 3: No Player Mode (Band Only)
+**Context:** No audience member playing, band uses game as backdrop
+
+```
+Song Ends (or No Player Triggered)
+    ↓
+"No Player" Transition UI
+    - Indicates band is moving to "band only" mode
+    - Game opportunity closed for this song
+    ↓
+Demo Mode Gameplay
+    - Game plays chart automatically
+    - Every hittable note is hit perfectly
+    - Acts as visual backdrop for band performance
+    - Projected behind band for VFX effect
+    ↓
+Song Ends
+    ↓
+(Back to Results or continue loop)
+```
+
+**Implementation:**
+- Demo mode: game engine plays chart, auto-hits all notes
+- Visual-only mode, no actual player input
+- Can be triggered manually during show
+
+---
+
+### Flow 4: Set End & Show End
+**Context:** Breaks between sets or end of show
+
+```
+Regular Song Flow
+    ↓
+Set End Triggered (manual MIDI/OSC or AbleSet)
+    ↓
+"Set End" Screen
+    - Custom UI for between-set breaks
+    - May trigger other audience/lighting cues
+    ↓
+(Resume normal flow when ready)
+
+OR
+
+    ↓
+Show End Triggered (manual MIDI/OSC or AbleSet)
+    ↓
+"Show End" Screen
+    - Game Over style (positive context)
+    - Final screen for the night
+    - May show aggregate stats (future feature)
+    ↓
+Manual Exit to Editor
+```
+
+**Triggers:**
+- Both Set End and Show End are manual input-based
+- Can come from AbleSet or direct MIDI controller
+- Distinct from normal song transitions
+
+---
+
+### Critical Answers Summary
+
+| Decision | Answer |
+|----------|--------|
+| **Results trigger** | Auto-show immediately when song ends |
+| **Results duration** | Player controls (clicks Next/Continue button) |
+| **Quick transitions** | Medleys charted as ONE song (no special handling needed) |
+| **Player swaps** | Separate "Waiting for Player Swap" state, manually triggered |
+| **Band ready** | Single MIDI/OSC input (external manual control) |
+| **Demo mode** | Game engine plays chart, auto-hits all notes |
+| **Results content** | Hit %, Streak, Notes Hit/Total + optional Next Song name |
+| **Next song display** | Global ON/OFF + per-song override from AbleSet mapping |
+| **Player name** | Foundation/variables only, disabled by default (future feature) |
+| **Set/Show end** | Manual triggers, distinct UI screens |
+| **Chart length** | No concerns, medleys ≤3 songs work fine |
+
+---
+
+### Results Screen Display Logic
+
+**"Next Up" Song Name Display:**
+```
+IF Global Setting "Show Next Song" = OFF
+    → Never show next song name (master kill switch)
+    
+ELSE IF Global Setting "Show Next Song" = ON
+    → Check song mapping data:
+        IF showNextSong: false in AbleSet mapping
+            → Hide next song name (surprise song)
+        ELSE
+            → Show next song name
+```
+
+**Player Name Display:**
+- Foundation in place (variables, structure)
+- Global ON/OFF setting (default OFF)
+- Low priority, future integration with external systems
+
+---
+
+### State Machine (Finalized)
+
+```
+┌──────────────┐
+│    EDITOR    │ ← Manual exit only (emergency or end of show)
+└──────┬───────┘
+       │ Start song
+       ↓
+┌──────────────┐
+│   PLAYING    │ ← Active gameplay (player or demo mode)
+└──────┬───────┘
+       │ Song ends (auto-detect)
+       ↓
+┌──────────────┐
+│   RESULTS    │ ← Stats display + Next/Continue button
+└──────┬───────┘
+       │ Player clicks Next/Continue
+       ↓
+    ┌──┴───────────────────┐
+    │                      │
+    ↓                      ↓
+┌────────────┐      ┌────────────┐
+│  WAITING   │      │  WAITING   │
+│   FOR      │ OR   │   FOR      │
+│ PLAYER     │      │  BAND      │
+│   SWAP     │      │            │
+└────┬───────┘      └─────┬──────┘
+     │                    │
+     │ Swap confirmed     │
+     └──────────┬─────────┘
+                │ Band ready trigger
+                ↓
+         ┌──────────────┐
+         │   PLAYING    │ ← Next song
+         └──────────────┘
+
+Special States (triggered manually):
+┌──────────────┐
+│   SET END    │ ← Between sets
+└──────────────┘
+
+┌──────────────┐
+│  SHOW END    │ ← End of night
+└──────────────┘
+
+┌──────────────┐
+│  NO PLAYER   │ ← Demo mode enabled
+│  (DEMO MODE) │
+└──────────────┘
+```
+
+---
+
+### Updated Configuration Schema
+
+**songsync_mapping.json:**
+```json
+{
+  "trackName": "Song Title",
+  "chartPath": "path/to/chart.chart",
+  "timelineStartTime": 0.0,
+  "showNextSong": true          // NEW: Show this song on previous results? (Optional)
+}
+```
+
+**Global Settings (in Editor):**
+- `Show Next Song Name` (ON/OFF) - Master control
+- `Show Player Name` (ON/OFF) - Future feature, default OFF
+- `Demo Mode Auto-Hit Timing` - Timing window for perfect hits
+- (Other existing settings remain)
+
+---
+
+### MIDI/OSC Message Requirements
+
+**New Input Messages Needed:**
+- `/player/swap` or MIDI Note - Trigger player swap state
+- `/player/ready` or MIDI Note - Force player ready
+- `/band/ready` or MIDI Note - Band ready, start next song
+- `/set/end` or MIDI Note - Trigger Set End screen
+- `/show/end` or MIDI Note - Trigger Show End screen
+- `/game/mode/demo` or MIDI Note - Enable demo mode (no player)
+
+**New Output Messages Needed:**
+- `/game/state` - Current state (playing, results, waiting_swap, waiting_band, set_end, show_end)
+- `/player/state` - Player state (active, ready, waiting, swapped)
+- `/band/state` - Band state (ready, waiting)
+
+*(All messages must be added to MESSAGE_REFERENCE.md during implementation)*
+
+---
+
+### FCB1010 MIDI Foot Controller Notes
+
+**Future Integration Ideas:**
+- Foot switch 1-2: Player ready, Band ready
+- Foot switch 3-4: Set end, Show end
+- Foot switch 5: Force player swap
+- Foot switch 6: Demo mode toggle
+- Expression pedal: (Future - difficulty adjustment, visual effects)
+
+*(No special implementation needed now, just mapping notes for future)*
+
+---
+
+### Implementation Priorities
+
+**Phase 1 (Core Flow):**
+1. ✅ Results screen UI with stats display
+2. ✅ "Waiting for Band" screen
+3. ✅ Band ready input handling
+4. ✅ Player continue flow (default behavior)
+
+**Phase 2 (Player Management):**
+5. ✅ "Waiting for Player Swap" screen
+6. ✅ Player swap triggers and state management
+7. ✅ Player ready state tracking
+8. ✅ Band override for player ready
+
+**Phase 3 (Special Modes):**
+9. ✅ Demo mode (auto-hit gameplay)
+10. ✅ "No Player" transition UI
+11. ✅ Set End screen
+12. ✅ Show End screen
+
+**Phase 4 (Polish):**
+13. ✅ "Next Up" song name display logic
+14. ✅ Player name foundation (variables only)
+15. ✅ All states broadcasted via OSC
+16. ✅ MESSAGE_REFERENCE.md updated
+
+---
+
+### Ready for Implementation
+
+All design decisions are finalized. Implementation can begin.
+
+**Next Steps:**
+1. Create detailed technical design document
+2. Define C# classes and state management architecture
+3. Design Unity UI prefabs for each screen state
+4. Implement state machine transitions
+5. Add MIDI/OSC message handlers
+6. Update MESSAGE_REFERENCE.md with new messages
+7. Add test cases to MIDI_TESTING_CHECKLIST.md
 
 ---
 

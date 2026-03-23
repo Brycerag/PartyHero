@@ -6,6 +6,9 @@ using MoonscraperChartEditor.Song;
 
 public class GameplayStateSystem : SystemManagerState.System
 {
+    // Public access to current instance (for ShowFlowManager)
+    public static GameplayStateSystem Instance { get; private set; }
+
     // Configurable properties
     bool botEnabled = true;
 
@@ -18,7 +21,9 @@ public class GameplayStateSystem : SystemManagerState.System
 
     delegate void GameplayUpdateFn(float time);
     GameplayUpdateFn gameplayUpdateFn = null;
-    BaseGameplayRulestate currentRulestate;
+    
+    // Public access to gameplay stats (for ShowFlowManager and results screen)
+    public BaseGameplayRulestate currentRulestate { get; private set; }
 
     const int HIT_WINDOW_DELAY_TOTAL_FRAMES = 2;
     int hitWindowFrameDelayCount = HIT_WINDOW_DELAY_TOTAL_FRAMES;
@@ -50,6 +55,10 @@ public class GameplayStateSystem : SystemManagerState.System
 
     public override void SystemEnter()
     {
+        Instance = this;
+
+        songEndTriggered = false; // Reset flag for new song
+
         ChartEditor editor = ChartEditor.Instance;
 
         GameplayType gameplayType = DetermineGameplayType(botEnabled, editor.currentGameMode);
@@ -87,6 +96,9 @@ public class GameplayStateSystem : SystemManagerState.System
 
         // Check for star power zone entry/exit
         UpdateStarpowerState(currentTime);
+
+        // Check if song has reached its end
+        CheckForSongEnd(currentTime);
 
         GameState gamestate = new GameState();
         gamestate.stats = currentRulestate.stats;
@@ -145,8 +157,69 @@ public class GameplayStateSystem : SystemManagerState.System
         }
     }
 
+    bool songEndTriggered = false; // Prevent multiple triggers
+
+    void CheckForSongEnd(float currentTime)
+    {
+        // Only check if show flow is enabled and we haven't already triggered
+        if (!ShowFlowManager.Instance || !ShowFlowManager.Instance.showFlowEnabled || songEndTriggered)
+            return;
+
+        ChartEditor editor = ChartEditor.Instance;
+        Song song = editor.currentSong;
+
+        // Determine song length
+        float songLength = GetSongLength(song);
+
+        // Check if we've reached or passed the song end
+        if (currentTime >= songLength)
+        {
+            songEndTriggered = true;
+
+            if (ShowFlowManager.Instance.debugShowFlow)
+            {
+                Debug.Log($"[GameplayStateSystem] Song end detected at {currentTime:F2}s (length: {songLength:F2}s)");
+            }
+
+            // Trigger song complete via ShowFlowManager
+            ShowFlowManager.Instance.TriggerSongComplete();
+        }
+    }
+
+    float GetSongLength(Song song)
+    {
+        // Priority 1: Manual length (explicitly set in song properties)
+        if (song.manualLength > 0)
+            return song.manualLength;
+
+        // Priority 2: Audio file length
+        var audioManager = ChartEditor.Instance.currentSongAudio;
+        if (audioManager != null)
+        {
+            float audioLength = audioManager.MainSongLength;
+            if (audioLength > 0)
+                return audioLength;
+        }
+
+        // Fallback: Chart length (last note + buffer)
+        // This is less ideal as songs often have outro after last note
+        Chart chart = ChartEditor.Instance.currentChart;
+        if (chart != null && chart.chartObjects.Count > 0)
+        {
+            var lastObject = chart.chartObjects[chart.chartObjects.Count - 1];
+            float chartEndTime = song.TickToTime(lastObject.tick, song.resolution);
+            return chartEndTime + 2.0f; // 2 second buffer after last note
+        }
+
+        // No valid length found
+        Debug.LogWarning("[GameplayStateSystem] Could not determine song length");
+        return float.MaxValue; // Never end
+    }
+
     public override void SystemExit()
     {
+        Instance = null;
+        
         missSoundSample = null;
         ChartEditor.Instance.uiServices.SetGameplayUIActive(false);
     }
