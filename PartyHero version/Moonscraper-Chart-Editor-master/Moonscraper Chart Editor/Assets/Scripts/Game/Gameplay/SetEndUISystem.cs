@@ -2,6 +2,7 @@
 // Set end UI system
 
 using UnityEngine;
+using MoonscraperEngine;
 
 /// <summary>
 /// UI System for the set end screen.

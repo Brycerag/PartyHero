@@ -82,8 +82,9 @@ public class BaseGameplayRulestate {
         ++stats.notesHit;
         ++stats.totalNotes;
 
-        if (MidiOutputManager.Instance != null)
-            MidiOutputManager.Instance.OnNoteHit();
+        // MIDI output disabled (NAudio.Midi DLL not present)
+        // if (MidiOutputManager.Instance != null)
+        //     MidiOutputManager.Instance.OnNoteHit();
 
         Note note = noteHitKnowledge.note;
         note.EnumerateChord(setNoteHitFn);
@@ -105,8 +106,9 @@ public class BaseGameplayRulestate {
             missFeedbackFn();
         }
 
-        if (MidiOutputManager.Instance != null)
-            MidiOutputManager.Instance.OnNoteMiss();
+        // MIDI output disabled (NAudio.Midi DLL not present)
+        // if (MidiOutputManager.Instance != null)
+        //     MidiOutputManager.Instance.OnNoteMiss();
 
         stats.noteStreak = 0;
 
