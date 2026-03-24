@@ -17,6 +17,31 @@ Five show flow screens need Unity UI:
 
 ---
 
+## Quick Start Guide
+
+**Scene:** `Main Editor.unity` (Assets/Scenes/Game/)
+
+**Unity Windows You'll Use:**
+- **Hierarchy** - Create/organize GameObjects (left panel)
+- **Inspector** - Configure components and properties (right panel)
+- **Scene View** - Visual layout (center, 2D mode recommended for UI)
+- **Project** - Access assets and scripts (bottom panel)
+
+**Unity Components You'll Add:**
+- **Canvas** - Container for UI elements
+- **Image** - Backgrounds and icons
+- **TextMeshProUGUI (TMP)** - All text elements
+- **Button** - Interactive elements (optional for now)
+- **RectTransform** - Already on all UI GameObjects (controls positioning/size)
+
+**Basic Workflow for Each Task:**
+1. Right-click in Hierarchy → Create Empty (or UI → Canvas/Image/Text)
+2. Select GameObject, configure in Inspector
+3. Repeat for child elements
+4. Save scene (Ctrl+S)
+
+---
+
 ## UI Architecture
 
 ```
@@ -477,118 +502,149 @@ public override void SystemEnter()
 
 ## Implementation Checklist
 
+**All work happens in:** `Main Editor.unity` scene (Assets/Scenes/Game/)  
+**Tip:** Keep this scene open while working through phases below.
+
 ### Phase 1: Unity Scene Setup
 
 - [ ] Open Unity project
-- [ ] Locate `UIServices` GameObject in scene (under DontDestroyOnLoad)
-- [ ] Create child GameObject: `showFlowUICanvas`
-- [ ] Add Canvas component to `showFlowUICanvas`
+- [ ] Load scene: `Main Editor.unity` (Assets/Scenes/Game/)
+- [ ] In Hierarchy, locate `UIServices` GameObject (under DontDestroyOnLoad)
+- [ ] Right-click `UIServices` → Create Empty → Rename to `showFlowUICanvas`
+- [ ] Select `showFlowUICanvas` → Inspector → Add Component → Canvas
 - [ ] Set Canvas render mode to "Screen Space - Overlay"
 
 ### Phase 2: Create UI Canvases
+
+**Tool:** Right-click `showFlowUICanvas` in Hierarchy → UI → Canvas (or Create Empty + add Canvas component)
 
 - [ ] Create `ResultsCanvas` child under `showFlowUICanvas`
 - [ ] Create `WaitingForBandCanvas` child under `showFlowUICanvas`
 - [ ] Create `WaitingForSwapCanvas` child under `showFlowUICanvas`
 - [ ] Create `SetEndCanvas` child under `showFlowUICanvas`
 - [ ] Create `ShowEndCanvas` child under `showFlowUICanvas`
+- [ ] For each: In Inspector, set initial state `enabled = false` (un-check the checkbox)
 
 ### Phase 3: Build Results Screen
 
-- [ ] Add Background Image to ResultsCanvas
-- [ ] Add TitleText (TextMeshProUGUI) - "SONG COMPLETE"
-- [ ] Add StatsText (TextMeshProUGUI) - Hit %, Streak, Notes
-- [ ] Add NextSongText (TextMeshProUGUI) - "Next: [Song Name]"
-- [ ] Add ContinuePrompt (TextMeshProUGUI) - "Press SPACE to continue..."
-- [ ] Add ContinueButton (Button) - Optional invisible full-screen button
-- [ ] Set initial state: Canvas enabled = false
+**Tools:** Right-click `ResultsCanvas` → UI → Image / Text - TextMeshPro
+
+- [ ] Add Background Image to ResultsCanvas (UI → Image)
+- [ ] Add TitleText (UI → Text - TextMeshPro) - "SONG COMPLETE"
+- [ ] Add StatsText (UI → Text - TextMeshPro) - Hit %, Streak, Notes
+- [ ] Add NextSongText (UI → Text - TextMeshPro) - "Next: [Song Name]"
+- [ ] Add ContinuePrompt (UI → Text - TextMeshPro) - "Press SPACE to continue..."
+- [ ] Add ContinueButton (UI → Button) - Optional invisible full-screen button
 
 ### Phase 4: Build Waiting For Band Screen
 
-- [ ] Add Background Image to WaitingForBandCanvas
-- [ ] Add TitleText - "WAITING FOR BAND"
-- [ ] Add PlayerReadyIcon (Image) + PlayerReadyText (TMP)
-- [ ] Add BandReadyIcon (Image) + BandReadyText (TMP)
-- [ ] Create/import check mark sprite (✓)
-- [ ] Create/import circle sprite (○)
+**Tools:** Right-click `WaitingForBandCanvas` → UI → Image / Text - TextMeshPro
+
+- [ ] Add Background Image to WaitingForBandCanvas (UI → Image)
+- [ ] Add TitleText (UI → Text - TextMeshPro) - "WAITING FOR BAND"
+- [ ] Add PlayerReadyIcon (UI → Image) + PlayerReadyText (UI → Text - TextMeshPro)
+- [ ] Add BandReadyIcon (UI → Image) + BandReadyText (UI → Text - TextMeshPro)
+- [ ] Create/import check mark sprite (✓) in Assets/Art/UI/Icons/
+- [ ] Create/import circle sprite (○) in Assets/Art/UI/Icons/
 - [ ] Set initial state: Canvas enabled = false
 
 ### Phase 5: Build Waiting For Swap Screen
 
-- [ ] Add Background Image to WaitingForSwapCanvas
-- [ ] Add TitleText - "PLAYER SWAP TIME"
-- [ ] Add InstructionText - Swap instructions
-- [ ] Add PromptText - Ready trigger prompt
-- [ ] Add PlayerStatusIcon (Image) + PlayerStatusText (TMP)
-- [ ] Set initial state: Canvas enabled = false
+**Tools:** Right-click `WaitingForSwapCanvas` → UI → Image / Text - TextMeshPro
+
+- [ ] Add Background Image to WaitingForSwapCanvas (UI → Image)
+- [ ] Add TitleText (UI → Text - TextMeshPro) - "PLAYER SWAP TIME"
+- [ ] Add InstructionText (UI → Text - TextMeshPro) - Swap instructions
+- [ ] Add PromptText (UI → Text - TextMeshPro) - Ready trigger prompt
+- [ ] Add PlayerStatusIcon (UI → Image) + PlayerStatusText (UI → Text - TextMeshPro)
 
 ### Phase 6: Build Set End Screen
 
-- [ ] Add Background Image to SetEndCanvas
-- [ ] Add TitleText - "SET BREAK"
-- [ ] Add MessageText - Break message
-- [ ] Add PromptText - Resume/end prompt
-- [ ] Add ResumeButton (optional)
-- [ ] Add EndShowButton (optional)
-- [ ] Set initial state: Canvas enabled = false
+**Tools:** Right-click `SetEndCanvas` → UI → Image / Text - TextMeshPro / Button
+
+- [ ] Add Background Image to SetEndCanvas (UI → Image)
+- [ ] Add TitleText (UI → Text - TextMeshPro) - "SET BREAK"
+- [ ] Add MessageText (UI → Text - TextMeshPro) - Break message
+- [ ] Add PromptText (UI → Text - TextMeshPro) - Resume/end prompt
+- [ ] Add ResumeButton (UI → Button) - Optional
+- [ ] Add EndShowButton (UI → Button) - Optional
 
 ### Phase 7: Build Show End Screen
 
-- [ ] Add Background Image to ShowEndCanvas
-- [ ] Add TitleText - "SHOW COMPLETE!"
-- [ ] Add ThankYouText - Thank you message
-- [ ] Add ClosingText - Closing message
-- [ ] Add ElapsedTimeText - Time counter
-- [ ] Set initial state: Canvas enabled = false
+**Tools:** Right-click `ShowEndCanvas` → UI → Image / Text - TextMeshPro
+
+- [ ] Add Background Image to ShowEndCanvas (UI → Image)
+- [ ] Add TitleText (UI → Text - TextMeshPro) - "SHOW COMPLETE!"
+- [ ] Add ThankYouText (UI → Text - TextMeshPro) - Thank you message
+- [ ] Add ClosingText (UI → Text - TextMeshPro) - Closing message
+- [ ] Add ElapsedTimeText (UI → Text - TextMeshPro) - Time counter
 
 ### Phase 8: Create ShowFlowUIManager
 
+**Tools:** Project panel → Assets/Scripts/Game/UI/ → Right-click → Create → C# Script
+
 - [ ] Create `ShowFlowUIManager.cs` in `Assets/Scripts/Game/UI/`
-- [ ] Copy component code from this document (see ShowFlowUIManager section)
-- [ ] Attach ShowFlowUIManager component to `showFlowUICanvas` GameObject
+- [ ] Copy component code from this document (see ShowFlowUIManager section below)
+- [ ] In Hierarchy, select `showFlowUICanvas` GameObject
+- [ ] In Inspector, click Add Component → search "ShowFlowUIManager" → Add
 
 ### Phase 9: Assign References in Inspector
 
-- [ ] Select `showFlowUICanvas` GameObject
-- [ ] In ShowFlowUIManager component inspector:
+**Tools:** Inspector panel (drag GameObjects from Hierarchy onto fields)
+
+- [ ] In Hierarchy, select `showFlowUICanvas` GameObject
+- [ ] In Inspector, find ShowFlowUIManager component
+- [ ] Drag Canvas GameObjects from Hierarchy to fields:
   - [ ] Drag ResultsCanvas to `resultsCanvas` field
   - [ ] Drag WaitingForBandCanvas to `waitingForBandCanvas` field
   - [ ] Drag WaitingForSwapCanvas to `waitingForSwapCanvas` field
   - [ ] Drag SetEndCanvas to `setEndCanvas` field
   - [ ] Drag ShowEndCanvas to `showEndCanvas` field
+- [ ] Expand canvases in Hierarchy and drag child elements:
   - [ ] Assign all Results Screen text/button references
   - [ ] Assign all Waiting For Band text/icon references
   - [ ] Assign all Waiting For Swap text/icon references
   - [ ] Assign all Set End text/button references
   - [ ] Assign all Show End text references
-  - [ ] Assign checkMarkSprite and circleSprite
+- [ ] Drag sprites from Project panel:
+  - [ ] Assign checkMarkSprite from Assets/Art/UI/Icons/
+  - [ ] Assign circleSprite from Assets/Art/UI/Icons/
 
 ### Phase 10: Update UIServices
 
-- [ ] Open `UIServices.cs` in code editor
-- [ ] Add `showFlowUICanvas` SerializeField
-- [ ] Add `showFlowUI` property with GetComponentInChildren<>
-- [ ] Add `SetShowFlowUIActive()` method
-- [ ] Select UIServices GameObject in Unity
-- [ ] Drag `showFlowUICanvas` to new `showFlowUICanvas` field in Inspector
+**Tools:** Code editor (VS Code/Visual Studio) + Unity Inspector
+
+- [ ] Open `UIServices.cs` in code editor (double-click in Project panel)
+- [ ] Add `showFlowUICanvas` SerializeField at top of class
+- [ ] Add `showFlowUI` property with GetComponentInChildren<ShowFlowUIManager>()
+- [ ] Add `SetShowFlowUIActive(bool active)` helper method
+- [ ] Save file, return to Unity (wait for recompile)
+- [ ] In Hierarchy, select UIServices GameObject
+- [ ] In Inspector, drag `showFlowUICanvas` from Hierarchy to new `showFlowUICanvas` field
 
 ### Phase 11: Update UI System Classes
 
-- [ ] Update `ResultsUISystem.cs` - Replace Debug.Log calls
-- [ ] Update `WaitingForBandUISystem.cs` - Replace Debug.Log calls
-- [ ] Update `WaitingForSwapUISystem.cs` - Replace Debug.Log calls
-- [ ] Update `SetEndUISystem.cs` - Replace Debug.Log calls
-- [ ] Update `ShowEndUISystem.cs` - Replace Debug.Log calls
+**Tools:** Code editor - Replace Debug.Log() calls with ShowFlowUIManager calls
+
+- [ ] Update `ResultsUISystem.cs` - Replace Debug.Log with uiManager calls
+- [ ] Update `WaitingForBandUISystem.cs` - Replace Debug.Log with uiManager calls
+- [ ] Update `WaitingForSwapUISystem.cs` - Replace Debug.Log with uiManager calls
+- [ ] Update `SetEndUISystem.cs` - Replace Debug.Log with uiManager calls
+- [ ] Update `ShowEndUISystem.cs` - Replace Debug.Log with uiManager calls
+- [ ] See "UI System Updates" section below for code patterns
 
 ### Phase 12: Testing
 
+**Tools:** Unity Play mode + Unity Console (Window → General → Console)
+
+- [ ] Hit Play button in Unity Editor
 - [ ] Test Results screen appears after song ends
 - [ ] Test stats display correctly on Results screen
 - [ ] Test "Next: [Song]" shows when enabled
 - [ ] Test SPACE key continues from Results screen
 - [ ] Test Waiting For Band screen appears (continuing mode)
 - [ ] Test ready indicators update in real-time
-- [ ] Test P/B dev keys work on Waiting For Band screen
+- [ ] Test P/B dev keys work on Waiting For Band screen (see MESSAGE_REFERENCE.md)
 - [ ] Test Waiting For Swap screen appears (swap mode)
 - [ ] Test R key works on Waiting For Swap screen
 - [ ] Test Set End screen appears on /set/end trigger
