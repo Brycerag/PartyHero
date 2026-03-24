@@ -117,7 +117,7 @@ namespace MoonscraperChartEditor.Song
             results.Clear();
 
             // Get all enabled mappings
-            List<SongMappingManager.SongMapping> mappings = SongMappingManager.Instance.GetAllEnabledMappings();
+            List<SongMapping> mappings = SongMappingManager.Instance.GetAllEnabledMappings();
             totalSongs = mappings.Count;
             songsVerified = 0;
             songsPassed = 0;

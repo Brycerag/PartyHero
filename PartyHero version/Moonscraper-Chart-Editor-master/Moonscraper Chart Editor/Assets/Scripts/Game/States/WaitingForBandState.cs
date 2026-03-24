@@ -74,7 +74,19 @@ public class WaitingForBandState : SystemManagerState
 
         // Fallback: No SongMappingManager or no next song - restart current song
         Debug.LogWarning("[WaitingForBandState] No next song in setlist, restarting current song");
-        ChartEditor.Instance.Play(enableBot: enableBot);
+        
+        // Start playing from current position with appropriate bot mode
+        ChartEditor editor = ChartEditor.Instance;
+        float playFromTime = editor.currentVisibleTime;
+        float? stopResetTime = null;
+        
+        if (Globals.gameSettings.resetAfterPlay)
+        {
+            stopResetTime = playFromTime;
+        }
+        
+        SystemManagerState playingState = new PlayingState(enableBot, playFromTime, stopResetTime);
+        editor.ChangeState(ChartEditor.State.Playing, playingState);
     }
 
     public override void Exit()

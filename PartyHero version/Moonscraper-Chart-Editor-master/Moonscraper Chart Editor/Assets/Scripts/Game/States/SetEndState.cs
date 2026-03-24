@@ -74,7 +74,7 @@ public class SetEndState : SystemManagerState
 
         // Fallback: Return to editor if no next song
         Debug.LogWarning("[SetEndState] No next song in setlist, returning to editor");
-        ChartEditor.Instance.ChangeState(ChartEditor.State.Editor);
+        ChartEditor.Instance.ChangeStateToEditor();
     }
 
     /// <summary>

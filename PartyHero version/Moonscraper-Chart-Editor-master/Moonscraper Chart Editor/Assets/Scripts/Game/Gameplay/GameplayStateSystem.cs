@@ -23,7 +23,7 @@ public class GameplayStateSystem : SystemManagerState.System
     GameplayUpdateFn gameplayUpdateFn = null;
     
     // Public access to gameplay stats (for ShowFlowManager and results screen)
-    public BaseGameplayRulestate currentRulestate { get; private set; }
+    public BaseGameplayRulestate currentRulestate;
 
     const int HIT_WINDOW_DELAY_TOTAL_FRAMES = 2;
     int hitWindowFrameDelayCount = HIT_WINDOW_DELAY_TOTAL_FRAMES;
@@ -189,16 +189,20 @@ public class GameplayStateSystem : SystemManagerState.System
     float GetSongLength(Song song)
     {
         // Priority 1: Manual length (explicitly set in song properties)
-        if (song.manualLength > 0)
-            return song.manualLength;
+        if (song.manualLength.HasValue && song.manualLength.Value > 0)
+            return song.manualLength.Value;
 
         // Priority 2: Audio file length
         var audioManager = ChartEditor.Instance.currentSongAudio;
         if (audioManager != null)
         {
-            float audioLength = audioManager.MainSongLength;
-            if (audioLength > 0)
-                return audioLength;
+            AudioStream audioStream = audioManager.mainSongAudio;
+            if (audioStream != null)
+            {
+                float audioLength = audioStream.ChannelLengthInSeconds();
+                if (audioLength > 0)
+                    return audioLength;
+            }
         }
 
         // Fallback: Chart length (last note + buffer)

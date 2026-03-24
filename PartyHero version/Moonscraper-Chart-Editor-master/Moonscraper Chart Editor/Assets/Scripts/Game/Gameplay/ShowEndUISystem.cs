@@ -68,7 +68,7 @@ public class ShowEndUISystem : SystemManagerState.System
     /// </summary>
     private void HandleDevelopmentInput()
     {
-        var showEndState = GetComponentInParent<ShowEndState>();
+        var showEndState = GetComponentInParent();
         if (showEndState == null)
             return;
 
@@ -88,7 +88,7 @@ public class ShowEndUISystem : SystemManagerState.System
         var editor = ChartEditor.Instance;
         if (editor != null && editor.currentState == ChartEditor.State.ShowEnd)
         {
-            var currentSystemState = editor.currentSystemManagerState;
+            var currentSystemState = editor.applicationStateMachine.currentState as SystemManagerState;
             return currentSystemState as ShowEndState;
         }
         return null;

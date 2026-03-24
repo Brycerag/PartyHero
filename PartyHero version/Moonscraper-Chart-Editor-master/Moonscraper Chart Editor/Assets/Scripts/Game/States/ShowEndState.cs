@@ -52,7 +52,7 @@ public class ShowEndState : SystemManagerState
             Debug.Log("[ShowEndState] Exiting show");
         }
 
-        ChartEditor.Instance.ChangeState(ChartEditor.State.Editor);
+        ChartEditor.Instance.ChangeStateToEditor();
     }
 
     public override void Exit()

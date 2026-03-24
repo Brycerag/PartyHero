@@ -530,7 +530,7 @@ public class ChartEditor : UnitySingleton<ChartEditor>
         ChangeState(state, newState);
     }
 
-    void ChangeState(State state, StateMachine.IState newState)
+    public void ChangeState(State state, StateMachine.IState newState)
     {
         if (newState != null)
         {

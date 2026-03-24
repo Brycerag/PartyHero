@@ -46,7 +46,7 @@ public class WaitingForSwapState : SystemManagerState
         // After swap, check if we need to wait for band or go directly to next song
         if (ShowFlowManager.Instance.requireBandReady)
         {
-            ShowFlowManager.Instance.TransitionToWaitingForBand();
+            ShowFlowManager.Instance.TransitionToWaitingForBand(playerReady: true);
         }
         else
         {
@@ -77,6 +77,18 @@ public class WaitingForSwapState : SystemManagerState
 
         // Fallback: No next song - restart current song
         Debug.LogWarning("[WaitingForSwapState] No next song in setlist, restarting current song");
-        ChartEditor.Instance.Play(enableBot: enableBot);
+        
+        // Start playing from current position with appropriate bot mode
+        ChartEditor editor = ChartEditor.Instance;
+        float playFromTime = editor.currentVisibleTime;
+        float? stopResetTime = null;
+        
+        if (Globals.gameSettings.resetAfterPlay)
+        {
+            stopResetTime = playFromTime;
+        }
+        
+        SystemManagerState playingState = new PlayingState(enableBot, playFromTime, stopResetTime);
+        editor.ChangeState(ChartEditor.State.Playing, playingState);
     }
 }

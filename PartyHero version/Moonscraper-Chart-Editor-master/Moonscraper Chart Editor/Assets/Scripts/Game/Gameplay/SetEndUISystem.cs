@@ -63,7 +63,7 @@ public class SetEndUISystem : SystemManagerState.System
     /// </summary>
     private void HandleDevelopmentInput()
     {
-        var setEndState = GetComponentInParent<SetEndState>();
+        var setEndState = GetComponentInParent();
         if (setEndState == null)
             return;
 
@@ -92,9 +92,8 @@ public class SetEndUISystem : SystemManagerState.System
         var editor = ChartEditor.Instance;
         if (editor != null && editor.currentState == ChartEditor.State.SetEnd)
         {
-            // Access the state instance through reflection or a stored reference
-            // For now, we'll use a simpler approach via the manager's current state
-            var currentSystemState = editor.currentSystemManagerState;
+            // Access the state instance through the application state machine
+            var currentSystemState = editor.applicationStateMachine.currentState as SystemManagerState;
             return currentSystemState as SetEndState;
         }
         return null;

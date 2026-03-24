@@ -136,7 +136,18 @@ public class ResultsUISystem : SystemManagerState.System
         // Fallback: No next song - restart current song in bot mode
         Debug.LogWarning("[ResultsUISystem] No next song in setlist, restarting current song in demo mode");
         ChartEditor editor = ChartEditor.Instance;
-        editor.Play(enableBot: true);
+        
+        // Start playing from current position with bot mode enabled
+        float playFromTime = editor.currentVisibleTime;
+        float? stopResetTime = null;
+        
+        if (Globals.gameSettings.resetAfterPlay)
+        {
+            stopResetTime = playFromTime;
+        }
+        
+        SystemManagerState playingState = new PlayingState(true, playFromTime, stopResetTime);
+        editor.ChangeState(ChartEditor.State.Playing, playingState);
 
         ShowFlowManager.Instance.BroadcastGameState("demo_mode");
     }
