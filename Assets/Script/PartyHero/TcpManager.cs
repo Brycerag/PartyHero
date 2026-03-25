@@ -261,10 +261,9 @@ namespace YARG.PartyHero
         {
             YargLogger.LogInfo("[PartyHero] TCP: Band ready received");
 
-            if (_stateMachine != null && 
-                _stateMachine.CurrentStateType == ShowFlowStateType.WaitingForBand)
+            if (_stateMachine != null)
             {
-                // TODO: Trigger band ready in WaitingForBandState
+                _stateMachine.TriggerBandReady();
             }
         }
 
@@ -272,10 +271,9 @@ namespace YARG.PartyHero
         {
             YargLogger.LogInfo("[PartyHero] TCP: Player ready received");
 
-            if (_stateMachine != null && 
-                _stateMachine.CurrentStateType == ShowFlowStateType.WaitingForBand)
+            if (_stateMachine != null)
             {
-                // TODO: Trigger player ready in WaitingForBandState
+                _stateMachine.TriggerPlayerReady();
             }
         }
 

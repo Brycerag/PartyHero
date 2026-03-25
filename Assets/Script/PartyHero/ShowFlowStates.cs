@@ -78,11 +78,34 @@ namespace YARG.PartyHero
             stateMachine?.LoadNextSong();
         }
 
+        public void SetPlayerReady(bool ready)
+        {
+            playerReady = ready;
+            YargLogger.LogInfo($"[PartyHero] Player ready updated via external input: {ready}");
+            LogBanner();
+            UpdateUI();
+            
+            // Check if both ready after update
+            if (playerReady && bandReady)
+            {
+                YargLogger.LogInfo("[PartyHero] Both player and band ready - continuing!");
+                ContinueToNextSong();
+            }
+        }
+        
         public void SetBandReady(bool ready)
         {
             bandReady = ready;
             YargLogger.LogInfo($"[PartyHero] Band ready updated via external input: {ready}");
+            LogBanner();
             UpdateUI();
+            
+            // Check if both ready after update
+            if (playerReady && bandReady)
+            {
+                YargLogger.LogInfo("[PartyHero] Both player and band ready - continuing!");
+                ContinueToNextSong();
+            }
         }
 
         private void UpdateUI()

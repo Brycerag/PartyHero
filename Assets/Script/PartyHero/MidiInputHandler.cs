@@ -31,7 +31,6 @@ namespace YARG.PartyHero
         public int minimumVelocity = 64;
 
         private ShowFlowStateMachine _stateMachine;
-        private WaitingForBandState _currentBandState;
         private PartyHeroState _partyHeroState;
 
         public void Initialize(ShowFlowStateMachine stateMachine, PartyHeroState state)
@@ -72,16 +71,9 @@ namespace YARG.PartyHero
         {
             YargLogger.LogInfo("[PartyHero] MIDI: Band ready received");
 
-            // If we're in the waiting for band state, trigger ready
-            if (_stateMachine != null && 
-                _stateMachine.CurrentStateType == ShowFlowStateType.WaitingForBand)
+            if (_stateMachine != null)
             {
-                // Access the current state and set band ready
-                // This requires the state to expose a method for external triggers
-                YargLogger.LogInfo("[PartyHero] Setting band ready via MIDI");
-                
-                // TODO: Need to expose method in WaitingForBandState to set ready externally
-                // For now, log that we received the trigger
+                _stateMachine.TriggerBandReady();
             }
         }
 
@@ -92,12 +84,11 @@ namespace YARG.PartyHero
         {
             YargLogger.LogInfo("[PartyHero] MIDI: Player ready received");
 
-            if (_stateMachine != null && 
-                _stateMachine.CurrentStateType == ShowFlowStateType.WaitingForBand)
+            if (_stateMachine != null)
             {
-                YargLogger.LogInfo("[PartyHero] Setting player ready via MIDI");
-                // TODO: Expose method in WaitingForBandState
+                _stateMachine.TriggerPlayerReady();
             }
+        }
         }
 
         /// <summary>
@@ -160,14 +151,6 @@ namespace YARG.PartyHero
             int octave = (noteNumber / 12) - 1;
             int note = noteNumber % 12;
             return $"{noteNames[note]}{octave}";
-        }
-
-        /// <summary>
-        /// Set the current band state for external control
-        /// </summary>
-        public void SetCurrentBandState(WaitingForBandState state)
-        {
-            _currentBandState = state;
         }
     }
 }

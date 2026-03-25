@@ -238,5 +238,71 @@ namespace YARG.PartyHero
             GlobalVariables.State.PlayingAShow = false;
             GlobalVariables.Instance.LoadScene(SceneIndex.Menu);
         }
+        
+        #region External Triggers (for MIDI/OSC/TCP)
+        
+        /// <summary>
+        /// Trigger player ready (only works in WaitingForBand state)
+        /// </summary>
+        public void TriggerPlayerReady()
+        {
+            if (currentState is WaitingForBandState waitingState)
+            {
+                waitingState.SetPlayerReady(true);
+            }
+            else
+            {
+                YargLogger.LogWarning($"[PartyHero] TriggerPlayerReady called but current state is {CurrentStateType}");
+            }
+        }
+        
+        /// <summary>
+        /// Trigger band ready (only works in WaitingForBand state)
+        /// </summary>
+        public void TriggerBandReady()
+        {
+            if (currentState is WaitingForBandState waitingState)
+            {
+                waitingState.SetBandReady(true);
+            }
+            else
+            {
+                YargLogger.LogWarning($"[PartyHero] TriggerBandReady called but current state is {CurrentStateType}");
+            }
+        }
+        
+        /// <summary>
+        /// Force completion of player swap (only works in WaitingForSwap state)
+        /// </summary>
+        public void ForceSwapComplete()
+        {
+            if (currentState is WaitingForSwapState)
+            {
+                YargLogger.LogInfo("[PartyHero] Forcing swap complete via external trigger");
+                LoadNextSong();
+            }
+            else
+            {
+                YargLogger.LogWarning($"[PartyHero] ForceSwapComplete called but current state is {CurrentStateType}");
+            }
+        }
+        
+        /// <summary>
+        /// Force resume from set break (only works in SetEnd state)
+        /// </summary>
+        public void ForceResumeFromBreak()
+        {
+            if (currentState is SetEndState)
+            {
+                YargLogger.LogInfo("[PartyHero] Forcing resume from break via external trigger");
+                LoadNextSong();
+            }
+            else
+            {
+                YargLogger.LogWarning($"[PartyHero] ForceResumeFromBreak called but current state is {CurrentStateType}");
+            }
+        }
+        
+        #endregion
     }
 }

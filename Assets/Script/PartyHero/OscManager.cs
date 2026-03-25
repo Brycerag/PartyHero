@@ -107,11 +107,23 @@ namespace YARG.PartyHero
         {
             YargLogger.LogInfo("[PartyHero] OSC: Band ready received");
 
-            if (_stateMachine != null && 
-                _stateMachine.CurrentStateType == ShowFlowStateType.WaitingForBand)
+            if (_stateMachine != null)
             {
-                // TODO: Trigger band ready in WaitingForBandState
-                YargLogger.LogInfo("[PartyHero] Setting band ready via OSC");
+                _stateMachine.TriggerBandReady();
+            }
+        }
+        
+        /// <summary>
+        /// Called when player ready OSC message is received
+        /// Message: /partyhero/player_ready
+        /// </summary>
+        private void OnPlayerReady()
+        {
+            YargLogger.LogInfo("[PartyHero] OSC: Player ready received");
+
+            if (_stateMachine != null)
+            {
+                _stateMachine.TriggerPlayerReady();
             }
         }
 
