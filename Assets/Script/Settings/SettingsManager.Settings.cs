@@ -719,6 +719,130 @@ namespace YARG.Settings
                 }
             }
             #endregion
+
+            #region PartyHero
+
+            // General
+            public ToggleSetting PartyHeroEnabled { get; } = new(false, onChange: PartyHeroEnabledCallback);
+            public ToggleSetting PartyHeroDevelopmentMode { get; } = new(true, onChange: PartyHeroConfigCallback);
+            public ToggleSetting PartyHeroLogAllMessages { get; } = new(true, onChange: PartyHeroConfigCallback);
+
+            // MIDI
+            public ToggleSetting PartyHeroMidiEnabled { get; } = new(true, onChange: PartyHeroConfigCallback);
+            public IntSetting PartyHeroBandReadyNote { get; } = new(60, 0, 127, onChange: PartyHeroConfigCallback);
+            public IntSetting PartyHeroForceNextNote { get; } = new(61, 0, 127, onChange: PartyHeroConfigCallback);
+            public IntSetting PartyHeroPlayerReadyCC { get; } = new(20, 0, 127, onChange: PartyHeroConfigCallback);
+            public IntSetting PartyHeroMinVelocity { get; } = new(64, 0, 127, onChange: PartyHeroConfigCallback);
+
+            // OSC
+            public ToggleSetting PartyHeroOscEnabled { get; } = new(true, onChange: PartyHeroConfigCallback);
+            public IntSetting PartyHeroOscReceivePort { get; } = new(8000, 1024, 65535, onChange: PartyHeroConfigCallback);
+            public IPv4Setting PartyHeroOscSendAddress { get; } = new(IPAddress.Loopback, onChange: PartyHeroConfigCallback);
+            public IntSetting PartyHeroOscSendPort { get; } = new(9000, 1024, 65535, onChange: PartyHeroConfigCallback);
+
+            // TCP
+            public ToggleSetting PartyHeroTcpEnabled { get; } = new(true, onChange: PartyHeroConfigCallback);
+            public ToggleSetting PartyHeroTcpServerMode { get; } = new(true, onChange: PartyHeroConfigCallback);
+            public IntSetting PartyHeroTcpListenPort { get; } = new(9001, 1024, 65535, onChange: PartyHeroConfigCallback);
+            public IPv4Setting PartyHeroTcpRemoteAddress { get; } = new(IPAddress.Loopback, onChange: PartyHeroConfigCallback);
+            public IntSetting PartyHeroTcpRemotePort { get; } = new(9002, 1024, 65535, onChange: PartyHeroConfigCallback);
+
+            private static void PartyHeroEnabledCallback(bool value)
+            {
+                YargLogger.LogInfo($"[PartyHero] Mode {(value ? "Enabled" : "Disabled")}");
+                SyncToPartyHeroConfig();
+            }
+
+            private static void PartyHeroConfigCallback()
+            {
+                SyncToPartyHeroConfig();
+            }
+
+            private static void PartyHeroConfigCallback(int value)
+            {
+                SyncToPartyHeroConfig();
+            }
+
+            private static void PartyHeroConfigCallback(IPAddress value)
+            {
+                SyncToPartyHeroConfig();
+            }
+
+            /// <summary>
+            /// Sync YARG settings to PartyHero config file
+            /// </summary>
+            private static void SyncToPartyHeroConfig()
+            {
+                var config = PartyHero.PartyHeroConfigManager.Instance.Config;
+
+                // General
+                config.debug.developmentMode = Settings.PartyHeroDevelopmentMode.Value;
+                config.debug.logAllMessages = Settings.PartyHeroLogAllMessages.Value;
+
+                // MIDI
+                config.midi.enabled = Settings.PartyHeroMidiEnabled.Value;
+                config.midi.bandReadyNote = Settings.PartyHeroBandReadyNote.Value;
+                config.midi.forceNextStateNote = Settings.PartyHeroForceNextNote.Value;
+                config.midi.playerReadyCC = Settings.PartyHeroPlayerReadyCC.Value;
+                config.midi.minimumVelocity = Settings.PartyHeroMinVelocity.Value;
+
+                // OSC
+                config.osc.enabled = Settings.PartyHeroOscEnabled.Value;
+                config.osc.receivePort = Settings.PartyHeroOscReceivePort.Value;
+                config.osc.sendAddress = Settings.PartyHeroOscSendAddress.Value.ToString();
+                config.osc.sendPort = Settings.PartyHeroOscSendPort.Value;
+
+                // TCP
+                config.tcp.enabled = Settings.PartyHeroTcpEnabled.Value;
+                config.tcp.serverMode = Settings.PartyHeroTcpServerMode.Value;
+                config.tcp.listenPort = Settings.PartyHeroTcpListenPort.Value;
+                config.tcp.remoteAddress = Settings.PartyHeroTcpRemoteAddress.Value.ToString();
+                config.tcp.remotePort = Settings.PartyHeroTcpRemotePort.Value;
+
+                // Save to JSON file
+                PartyHero.PartyHeroConfigManager.Instance.SaveConfig();
+
+                // Trigger reload in components
+                PartyHero.PartyHeroConfigManager.Instance.ReloadConfig();
+
+                YargLogger.LogInfo("[PartyHero] Settings synced to config file");
+            }
+
+            /// <summary>
+            /// Load PartyHero settings from config file (called on startup)
+            /// </summary>
+            public static void LoadPartyHeroSettings()
+            {
+                var config = PartyHero.PartyHeroConfigManager.Instance.Config;
+
+                // General
+                Settings.PartyHeroDevelopmentMode.Value = config.debug.developmentMode;
+                Settings.PartyHeroLogAllMessages.Value = config.debug.logAllMessages;
+
+                // MIDI
+                Settings.PartyHeroMidiEnabled.Value = config.midi.enabled;
+                Settings.PartyHeroBandReadyNote.Value = config.midi.bandReadyNote;
+                Settings.PartyHeroForceNextNote.Value = config.midi.forceNextStateNote;
+                Settings.PartyHeroPlayerReadyCC.Value = config.midi.playerReadyCC;
+                Settings.PartyHeroMinVelocity.Value = config.midi.minimumVelocity;
+
+                // OSC
+                Settings.PartyHeroOscEnabled.Value = config.osc.enabled;
+                Settings.PartyHeroOscReceivePort.Value = config.osc.receivePort;
+                Settings.PartyHeroOscSendAddress.Value = IPAddress.Parse(config.osc.sendAddress);
+                Settings.PartyHeroOscSendPort.Value = config.osc.sendPort;
+
+                // TCP
+                Settings.PartyHeroTcpEnabled.Value = config.tcp.enabled;
+                Settings.PartyHeroTcpServerMode.Value = config.tcp.serverMode;
+                Settings.PartyHeroTcpListenPort.Value = config.tcp.listenPort;
+                Settings.PartyHeroTcpRemoteAddress.Value = IPAddress.Parse(config.tcp.remoteAddress);
+                Settings.PartyHeroTcpRemotePort.Value = config.tcp.remotePort;
+
+                YargLogger.LogInfo("[PartyHero] Settings loaded from config file");
+            }
+
+            #endregion
         }
     }
 }

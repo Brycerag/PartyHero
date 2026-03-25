@@ -19,7 +19,7 @@ namespace YARG.PartyHero
     /// </summary>
     public class OscManager : MonoBehaviour
     {
-        [Header("OSC Configuration")]
+        [Header("OSC Configuration (Loaded from config file)")]
         [Tooltip("Port to receive OSC messages on")]
         public int receivePort = 8000;
 
@@ -33,6 +33,9 @@ namespace YARG.PartyHero
         [Tooltip("OSC address for band ready trigger")]
         public string bandReadyAddress = "/partyhero/band_ready";
 
+        [Tooltip("OSC address for player ready trigger")]
+        public string playerReadyAddress = "/partyhero/player_ready";
+
         [Tooltip("OSC address for force state change")]
         public string forceStateAddress = "/partyhero/force_state";
 
@@ -42,6 +45,7 @@ namespace YARG.PartyHero
         private ShowFlowStateMachine _stateMachine;
         private PartyHeroState _partyHeroState;
         private bool _initialized = false;
+        private bool _enabled = true;
 
 // Uncomment when OscCore is installed
 #if OSCCORE_IMPORTED
@@ -54,11 +58,18 @@ namespace YARG.PartyHero
             _stateMachine = stateMachine;
             _partyHeroState = state;
 
+            // Load configuration from file
+            LoadFromConfig();
+            
+            // Subscribe to config reload events
+            PartyHeroConfigManager.Instance.OnConfigReloaded += OnConfigReloaded;
+
             try
             {
                 InitializeOsc();
                 _initialized = true;
                 YargLogger.LogInfo($"[PartyHero] OSC Manager initialized");
+                YargLogger.LogInfo($"[PartyHero] OSC Enabled: {_enabled}");
                 YargLogger.LogInfo($"[PartyHero] Receiving on port {receivePort}");
                 YargLogger.LogInfo($"[PartyHero] Sending to {sendAddress}:{sendPort}");
             }
@@ -67,6 +78,30 @@ namespace YARG.PartyHero
                 YargLogger.LogException(ex, "Failed to initialize OSC");
                 _initialized = false;
             }
+        }
+
+        private void LoadFromConfig()
+        {
+            var config = PartyHeroConfigManager.Instance.Config.osc;
+            receivePort = config.receivePort;
+            sendAddress = config.sendAddress;
+            sendPort = config.sendPort;
+            _enabled = config.enabled;
+            
+            bandReadyAddress = config.addresses.bandReady;
+            playerReadyAddress = config.addresses.playerReady;
+            forceStateAddress = config.addresses.forceState;
+            syncTimeAddress = config.addresses.syncTime;
+        }
+
+        private void OnConfigReloaded(PartyHeroConfig config)
+        {
+            YargLogger.LogInfo("[PartyHero] OSC: Reloading configuration...");
+            LoadFromConfig();
+            
+            // Reinitialize OSC with new settings
+            OnDestroy(); // Clean up old connections
+            InitializeOsc();
         }
 
         private void InitializeOsc()
@@ -95,6 +130,12 @@ namespace YARG.PartyHero
             // _server?.Dispose();
             // _client?.Dispose();
 #endif
+            
+            // Unsubscribe from config events
+            if (PartyHeroConfigManager.Instance != null)
+            {
+                PartyHeroConfigManager.Instance.OnConfigReloaded -= OnConfigReloaded;
+            }
         }
 
         #region Receive Messages (DAW → Game)

@@ -15,7 +15,7 @@ namespace YARG.PartyHero
     /// </summary>
     public class TcpManager : MonoBehaviour
     {
-        [Header("TCP Configuration")]
+        [Header("TCP Configuration (Loaded from config file)")]
         [Tooltip("Port to listen for incoming connections")]
         public int listenPort = 9001;
 
@@ -31,6 +31,7 @@ namespace YARG.PartyHero
 
         private ShowFlowStateMachine _stateMachine;
         private PartyHeroState _partyHeroState;
+        private bool _enabled = true;
         
         private TcpListener _server;
         private TcpClient _client;
@@ -46,7 +47,58 @@ namespace YARG.PartyHero
             _stateMachine = stateMachine;
             _partyHeroState = state;
 
+            // Load configuration from file
+            LoadFromConfig();
+            
+            // Subscribe to config reload events
+            PartyHeroConfigManager.Instance.OnConfigReloaded += OnConfigReloaded;
+
             try
+            {
+                if (_enabled)
+                {
+                    if (serverMode)
+                    {
+                        StartServer();
+                    }
+                    else
+                    {
+                        StartClient();
+                    }
+                }
+                else
+                {
+                    YargLogger.LogInfo("[PartyHero] TCP Manager disabled in config");
+                }
+            }
+            catch (Exception ex)
+            {
+                YargLogger.LogException(ex, "Failed to initialize TCP");
+            }
+        }
+
+        private void LoadFromConfig()
+        {
+            var config = PartyHeroConfigManager.Instance.Config.tcp;
+            serverMode = config.serverMode;
+            listenPort = config.listenPort;
+            remoteAddress = config.remoteAddress;
+            remotePort = config.remotePort;
+            _enabled = config.enabled;
+        }
+
+        private void OnConfigReloaded(PartyHeroConfig config)
+        {
+            YargLogger.LogInfo("[PartyHero] TCP: Reloading configuration...");
+            
+            // Stop current connections
+            _running = false;
+            OnDestroy();
+            
+            // Reload and restart
+            LoadFromConfig();
+            
+            if (_enabled)
             {
                 if (serverMode)
                 {
@@ -56,10 +108,6 @@ namespace YARG.PartyHero
                 {
                     StartClient();
                 }
-            }
-            catch (Exception ex)
-            {
-                YargLogger.LogException(ex, "Failed to initialize TCP");
             }
         }
 
@@ -375,6 +423,12 @@ namespace YARG.PartyHero
             catch (Exception ex)
             {
                 YargLogger.LogException(ex, "Error shutting down TCP");
+            }
+            
+            // Unsubscribe from config events
+            if (PartyHeroConfigManager.Instance != null)
+            {
+                PartyHeroConfigManager.Instance.OnConfigReloaded -= OnConfigReloaded;
             }
         }
 

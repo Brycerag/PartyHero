@@ -79,6 +79,11 @@ namespace YARG.Menu.Main
             menu.gameObject.SetActive(true);
         }
 
+        public void PartyHero()
+        {
+            YARG.PartyHero.PartyHeroMenuIntegration.BrowseForSetlist();
+        }
+
         public void Profiles()
         {
             MenuManager.Instance.PushMenu(MenuManager.Menu.ProfileList);

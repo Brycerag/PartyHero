@@ -163,6 +163,33 @@ namespace YARG.Settings
                 nameof(Settings.GraphicalProgressOnScoreBox),
                 nameof(Settings.KeepSongInfoVisible),
             },
+            new MetadataTab("PartyHero", icon: "Generic")
+            {
+                new HeaderMetadata("General"),
+                nameof(Settings.PartyHeroEnabled),
+                nameof(Settings.PartyHeroDevelopmentMode),
+                nameof(Settings.PartyHeroLogAllMessages),
+
+                new HeaderMetadata("MIDI"),
+                nameof(Settings.PartyHeroMidiEnabled),
+                nameof(Settings.PartyHeroBandReadyNote),
+                nameof(Settings.PartyHeroForceNextNote),
+                nameof(Settings.PartyHeroPlayerReadyCC),
+                nameof(Settings.PartyHeroMinVelocity),
+
+                new HeaderMetadata("OSC"),
+                nameof(Settings.PartyHeroOscEnabled),
+                nameof(Settings.PartyHeroOscReceivePort),
+                nameof(Settings.PartyHeroOscSendAddress),
+                nameof(Settings.PartyHeroOscSendPort),
+
+                new HeaderMetadata("TCP"),
+                nameof(Settings.PartyHeroTcpEnabled),
+                nameof(Settings.PartyHeroTcpServerMode),
+                nameof(Settings.PartyHeroTcpListenPort),
+                nameof(Settings.PartyHeroTcpRemoteAddress),
+                nameof(Settings.PartyHeroTcpRemotePort),
+            },
             new PresetsTab("Presets", icon: "Customization"),
             new AllSettingsTab(),
         };
@@ -257,6 +284,16 @@ namespace YARG.Settings
             // If null, recreate
             Settings ??= new SettingContainer();
             SettingContainer.IsInitialized = true;
+
+            // Load PartyHero settings from config file
+            try
+            {
+                SettingContainer.LoadPartyHeroSettings();
+            }
+            catch (Exception e)
+            {
+                YargLogger.LogException(e, "Failed to load PartyHero settings!");
+            }
 
             // Now that we're done loading, call all of the callbacks
             var fields = typeof(SettingContainer).GetProperties();
