@@ -1,0 +1,72 @@
+{
+  "showName": "PartyHero Demo Show",
+  "venue": "The Rock Club",
+  "date": "2026-03-24",
+  "endMessage": "Thank you for playing PartyHero! Follow us @partyhero",
+  "sets": [
+    {
+      "setNumber": 1,
+      "songs": [
+        {
+          "songName": "Opening Song",
+          "songHash": "REPLACE_WITH_ACTUAL_SONG_HASH",
+          "difficulty": "Expert",
+          "playerSwapAfter": false,
+          "swapMessage": "",
+          "minimumSwapTime": 10
+        },
+        {
+          "songName": "Second Song",
+          "songHash": "REPLACE_WITH_ACTUAL_SONG_HASH",
+          "difficulty": "Expert",
+          "playerSwapAfter": false,
+          "swapMessage": "",
+          "minimumSwapTime": 10
+        },
+        {
+          "songName": "Epic Solo Number",
+          "songHash": "REPLACE_WITH_ACTUAL_SONG_HASH",
+          "difficulty": "Expert",
+          "playerSwapAfter": true,
+          "swapMessage": "Guitarist trades with bassist!",
+          "minimumSwapTime": 15
+        }
+      ],
+      "breakAfter": true,
+      "breakMessage": "15 minute intermission - grab a drink and stretch!",
+      "breakDurationSeconds": 900
+    },
+    {
+      "setNumber": 2,
+      "songs": [
+        {
+          "songName": "Back From Break",
+          "songHash": "REPLACE_WITH_ACTUAL_SONG_HASH",
+          "difficulty": "Expert",
+          "playerSwapAfter": false,
+          "swapMessage": "",
+          "minimumSwapTime": 10
+        },
+        {
+          "songName": "Crowd Favorite",
+          "songHash": "REPLACE_WITH_ACTUAL_SONG_HASH",
+          "difficulty": "Expert",
+          "playerSwapAfter": false,
+          "swapMessage": "",
+          "minimumSwapTime": 10
+        },
+        {
+          "songName": "Grand Finale",
+          "songHash": "REPLACE_WITH_ACTUAL_SONG_HASH",
+          "difficulty": "Expert",
+          "playerSwapAfter": false,
+          "swapMessage": "",
+          "minimumSwapTime": 10
+        }
+      ],
+      "breakAfter": false,
+      "breakMessage": "",
+      "breakDurationSeconds": 0
+    }
+  ]
+}
