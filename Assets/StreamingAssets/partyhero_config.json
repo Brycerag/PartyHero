@@ -1,0 +1,35 @@
+{
+  "midi": {
+    "bandReadyNote": 60,
+    "forceNextStateNote": 61,
+    "playerReadyCC": 20,
+    "minimumVelocity": 64,
+    "enabled": true
+  },
+  "osc": {
+    "receivePort": 8000,
+    "sendAddress": "127.0.0.1",
+    "sendPort": 9000,
+    "enabled": true,
+    "addresses": {
+      "bandReady": "/partyhero/band_ready",
+      "playerReady": "/partyhero/player_ready",
+      "forceState": "/partyhero/force_state",
+      "syncTime": "/partyhero/sync_time",
+      "songStart": "/partyhero/song_start",
+      "songEnd": "/partyhero/song_end",
+      "stateChange": "/partyhero/state_change"
+    }
+  },
+  "tcp": {
+    "serverMode": true,
+    "listenPort": 9001,
+    "remoteAddress": "127.0.0.1",
+    "remotePort": 9002,
+    "enabled": true
+  },
+  "debug": {
+    "developmentMode": true,
+    "logAllMessages": true
+  }
+}

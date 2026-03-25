@@ -7,41 +7,68 @@ namespace YARG.PartyHero
     /// <summary>
     /// Handles MIDI input for PartyHero show flow triggers
     /// Integrates with YARG's existing MIDI system (Hidrogen/PlasticBand)
+    /// Configuration loaded from partyhero_config.json
     /// </summary>
     public class MidiInputHandler : MonoBehaviour
     {
-        /// <summary>
-        /// MIDI note for band ready trigger (C4 = 60)
-        /// </summary>
+        [Header("MIDI Configuration (Loaded from config file)")]
+        [Tooltip("MIDI note for band ready trigger (C4 = 60)")]
         public int bandReadyNote = 60;
 
-        /// <summary>
-        /// MIDI note for force next state (C#4 = 61)
-        /// </summary>
+        [Tooltip("MIDI note for force next state (C#4 = 61)")]
         public int forceNextStateNote = 61;
 
-        /// <summary>
-        /// MIDI CC for player ready toggle
-        /// </summary>
+        [Tooltip("MIDI CC for player ready toggle")]
         public int playerReadyCC = 20;
 
-        /// <summary>
-        /// Minimum velocity to trigger (0-127)
-        /// </summary>
+        [Tooltip("Minimum velocity to trigger (0-127)")]
         public int minimumVelocity = 64;
 
         private ShowFlowStateMachine _stateMachine;
         private PartyHeroState _partyHeroState;
+        private bool _enabled = true;
 
         public void Initialize(ShowFlowStateMachine stateMachine, PartyHeroState state)
         {
             _stateMachine = stateMachine;
             _partyHeroState = state;
             
+            // Load configuration from file
+            LoadFromConfig();
+            
+            // Subscribe to config reload events
+            PartyHeroConfigManager.Instance.OnConfigReloaded += OnConfigReloaded;
+            
             YargLogger.LogInfo("[PartyHero] MIDI Input Handler initialized");
+            YargLogger.LogInfo($"[PartyHero] MIDI Enabled: {_enabled}");
             YargLogger.LogInfo($"[PartyHero] Band Ready Note: {bandReadyNote} (MIDI {GetNoteName(bandReadyNote)})");
             YargLogger.LogInfo($"[PartyHero] Force Next State Note: {forceNextStateNote} (MIDI {GetNoteName(forceNextStateNote)})");
             YargLogger.LogInfo($"[PartyHero] Player Ready CC: {playerReadyCC}");
+        }
+
+        private void LoadFromConfig()
+        {
+            var config = PartyHeroConfigManager.Instance.Config.midi;
+            bandReadyNote = config.bandReadyNote;
+            forceNextStateNote = config.forceNextStateNote;
+            playerReadyCC = config.playerReadyCC;
+            minimumVelocity = config.minimumVelocity;
+            _enabled = config.enabled;
+        }
+
+        private void OnConfigReloaded(PartyHeroConfig config)
+        {
+            YargLogger.LogInfo("[PartyHero] MIDI: Reloading configuration...");
+            LoadFromConfig();
+        }
+
+        private void OnDestroy()
+        {
+            // Unsubscribe from config events
+            if (PartyHeroConfigManager.Instance != null)
+            {
+                PartyHeroConfigManager.Instance.OnConfigReloaded -= OnConfigReloaded;
+            }
         }
 
         private void Update()
