@@ -95,6 +95,11 @@ namespace YARG.PartyHero
         private PartyHeroState partyHeroState;
         private ShowFlowUIManager uiManager;
         
+        // Communication managers
+        private MidiInputHandler midiHandler;
+        private OscManager oscManager;
+        private TcpManager tcpManager;
+        
         public ShowFlowStateType CurrentStateType { get; private set; }
 
         public void Initialize(PartyHeroState state, ShowFlowUIManager ui)
@@ -102,6 +107,26 @@ namespace YARG.PartyHero
             partyHeroState = state;
             uiManager = ui;
             CurrentStateType = ShowFlowStateType.None;
+            
+            // Initialize communication managers
+            InitializeCommunication();
+        }
+        
+        private void InitializeCommunication()
+        {
+            // MIDI input handler
+            midiHandler = gameObject.AddComponent<MidiInputHandler>();
+            midiHandler.Initialize(this, partyHeroState);
+            
+            // OSC manager (requires OscCore package)
+            oscManager = gameObject.AddComponent<OscManager>();
+            oscManager.Initialize(this, partyHeroState);
+            
+            // TCP manager
+            tcpManager = gameObject.AddComponent<TcpManager>();
+            tcpManager.Initialize(this, partyHeroState);
+            
+            YargLogger.LogInfo("[PartyHero] Communication managers initialized");
         }
 
         public void ChangeState(ShowFlowStateType stateType)
@@ -127,6 +152,9 @@ namespace YARG.PartyHero
             if (currentState != null)
             {
                 currentState.OnStateEnter();
+                
+                // Notify communication managers of state change
+                NotifyStateChange(stateType);
             }
         }
 
@@ -136,6 +164,9 @@ namespace YARG.PartyHero
             {
                 currentState.OnStateUpdate();
             }
+            
+            // Process main thread actions from TCP
+            UnityMainThreadDispatcher.ExecuteQueue();
         }
 
         /// <summary>
@@ -151,6 +182,10 @@ namespace YARG.PartyHero
             if (nextSong != null)
             {
                 YargLogger.LogInfo($"[PartyHero] Loading next song: {nextSong.songName}");
+                
+                // Notify communication managers
+                NotifySongStart(nextSong.songName);
+                
                 GlobalVariables.Instance.LoadScene(SceneIndex.Gameplay);
             }
             else
@@ -158,6 +193,40 @@ namespace YARG.PartyHero
                 YargLogger.LogWarning("[PartyHero] No next song found!");
             }
         }
+        
+        /// <summary>
+        /// Notify that a song has ended (call from GameManager after song completes)
+        /// </summary>
+        public void OnSongEnd(int score)
+        {
+            YargLogger.LogInfo($"[PartyHero] Song ended with score: {score}");
+            
+            // Notify communication managers
+            oscManager?.SendSongEnd(score);
+            tcpManager?.SendSongEnd(score);
+        }
+
+        #region Communication Notifications
+        
+        private void NotifyStateChange(ShowFlowStateType stateType)
+        {
+            string stateName = stateType.ToString();
+            
+            oscManager?.SendStateChange(stateName);
+            tcpManager?.SendStateChange(stateName);
+            
+            YargLogger.LogInfo($"[PartyHero] Notified state change: {stateName}");
+        }
+        
+        private void NotifySongStart(string songName)
+        {
+            oscManager?.SendSongStart(songName);
+            tcpManager?.SendSongStart(songName);
+            
+            YargLogger.LogInfo($"[PartyHero] Notified song start: {songName}");
+        }
+        
+        #endregion
 
         /// <summary>
         /// End the show early and return to menu
